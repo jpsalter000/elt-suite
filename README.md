@@ -34,6 +34,7 @@ src/elt_suite/
 src/consumers/
   salesforce/client.py                  # fetch_contacts, fetch_accounts, fetch_opportunities
   netsuite/client.py                    # fetch_customers, fetch_transactions
+  usgs/client.py                        # fetch_earthquakes, fetch_significant_earthquakes (no credentials)
 ```
 
 ## Consumer config
@@ -68,7 +69,7 @@ src/consumers/
 | `credentials` | Maps a logical credential name to the **environment variable** that holds it. Secrets never go in configs. |
 | `destination`, `target_schema` | Which destination from `destinations.json` to load into, and which schema to use there. |
 | `extra` | Free-form settings for the source client, such as API version or page size. |
-| `jobs[]` | `name`, `primary_keys`, and optionally `incremental_loading` (`incremental_key`, `lower_bound`, `datetime_format`) and `fetch` (overrides the function name). |
+| `jobs[]` | `name`, `primary_keys`, and optionally `incremental_loading` (`incremental_key`, `lower_bound`, `datetime_format`) `fetch` (overrides the function name), and `options` (source-specific settings for the job, such as query filters). |
 
 ## The consumer contract
 
@@ -134,16 +135,29 @@ The `_runs` table doubles as the state store, so no separate state file or servi
 - `--full-refresh` ignores state and re-reads from the configured `lower_bound`.
 - Watermarks are stored formatted with the job's `datetime_format`, so they parse back the same way.
 
-## Quickstart
+## Quickstart (no credentials needed)
+
+The `demo_usgs_extract_and_load` consumer reads the public [USGS Earthquake Catalog](https://earthquake.usgs.gov/fdsnws/event/1/), so you can run the whole pipeline without any accounts. All you need is [uv](https://docs.astral.sh/uv/) and Docker.
 
 ```bash
 uv sync
-cp .env.example .env        # fill in credentials
-docker compose up -d        # local Postgres on :5432
+cp .env.example .env                                  # WAREHOUSE_DSN for the local Postgres
+docker compose up -d                                  # Postgres on :5432
 uv run elt list
-uv run elt infer acme_netsuite_extract_and_load
-uv run elt run acme_netsuite_extract_and_load
+uv run elt infer demo_usgs_extract_and_load           # writes schemas/demo_usgs_extract_and_load/*.json
+uv run elt run demo_usgs_extract_and_load             # first run: everything since lower_bound
+uv run elt run demo_usgs_extract_and_load             # later runs: only events updated since the last run
 ```
+
+Then look at the results:
+
+```bash
+docker compose exec warehouse psql -U elt -d warehouse -c   "SELECT job, status, records_loaded, lower_bound, max_incremental_value FROM demo_usgs._runs ORDER BY started_at"
+```
+
+The earthquake data also shows inference at work. `mag` arrives as both `5` and `4.7` and widens to `number`, `felt` is nullable, `tz` is always null, and the comma-encoded `sources` field becomes `array<string>` (stored as `JSONB`). The generated schemas are committed in [`schemas/demo_usgs_extract_and_load/`](schemas/demo_usgs_extract_and_load/).
+
+The Salesforce and NetSuite consumers work the same way once their credentials are in `.env`.
 
 ## Development
 

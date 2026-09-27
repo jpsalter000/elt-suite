@@ -64,6 +64,10 @@ class JobConfig(_Strict):
         default=None,
         description="Override for the client function name (defaults to fetch_<name>).",
     )
+    options: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Source-specific settings for this job (e.g. query filters).",
+    )
 
     @property
     def fetch_function(self) -> str:

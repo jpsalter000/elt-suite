@@ -1,0 +1,43 @@
+{
+  "company": "demo",
+  "source_system": "usgs",
+  "base_url": "https://earthquake.usgs.gov/fdsnws/event/1",
+  "credentials": {},
+  "destination": "warehouse",
+  "target_schema": "demo_usgs",
+  "extra": {
+    "page_size": 500
+  },
+  "jobs": [
+    {
+      "name": "earthquakes",
+      "primary_keys": [
+        "id"
+      ],
+      "incremental_loading": {
+        "incremental_key": "updated",
+        "lower_bound": "2026-09-01T00:00:00.000+0000",
+        "datetime_format": "%Y-%m-%dT%H:%M:%S.%f%z"
+      },
+      "options": {
+        "starttime": "2026-09-01",
+        "minmagnitude": 2.5
+      }
+    },
+    {
+      "name": "significant_earthquakes",
+      "primary_keys": [
+        "id"
+      ],
+      "incremental_loading": {
+        "incremental_key": "updated",
+        "lower_bound": "2026-01-01T00:00:00.000+0000",
+        "datetime_format": "%Y-%m-%dT%H:%M:%S.%f%z"
+      },
+      "options": {
+        "starttime": "2026-01-01",
+        "minsig": 600
+      }
+    }
+  ]
+}
