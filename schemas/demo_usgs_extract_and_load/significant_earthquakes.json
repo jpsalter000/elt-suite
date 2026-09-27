@@ -1,0 +1,146 @@
+{
+  "consumer": "demo_usgs_extract_and_load",
+  "job": "significant_earthquakes",
+  "primary_keys": [
+    "id"
+  ],
+  "incremental_key": "updated",
+  "generated_at": "2026-09-27T20:19:17+00:00",
+  "records_scanned": 100,
+  "fields": {
+    "id": {
+      "type": "string",
+      "nullable": false
+    },
+    "mag": {
+      "type": "number",
+      "nullable": true
+    },
+    "place": {
+      "type": "string",
+      "nullable": false
+    },
+    "time": {
+      "type": "string",
+      "nullable": false,
+      "format": "date-time"
+    },
+    "updated": {
+      "type": "string",
+      "nullable": false,
+      "format": "date-time"
+    },
+    "tz": {
+      "type": "null",
+      "nullable": true
+    },
+    "url": {
+      "type": "string",
+      "nullable": false
+    },
+    "detail": {
+      "type": "string",
+      "nullable": false
+    },
+    "felt": {
+      "type": "integer",
+      "nullable": true
+    },
+    "cdi": {
+      "type": "number",
+      "nullable": true
+    },
+    "mmi": {
+      "type": "number",
+      "nullable": true
+    },
+    "alert": {
+      "type": "string",
+      "nullable": true
+    },
+    "status": {
+      "type": "string",
+      "nullable": false
+    },
+    "tsunami": {
+      "type": "integer",
+      "nullable": false
+    },
+    "sig": {
+      "type": "integer",
+      "nullable": false
+    },
+    "net": {
+      "type": "string",
+      "nullable": false
+    },
+    "code": {
+      "type": "string",
+      "nullable": false
+    },
+    "ids": {
+      "type": "array",
+      "nullable": false,
+      "items": {
+        "type": "string",
+        "nullable": false
+      }
+    },
+    "sources": {
+      "type": "array",
+      "nullable": false,
+      "items": {
+        "type": "string",
+        "nullable": false
+      }
+    },
+    "types": {
+      "type": "array",
+      "nullable": false,
+      "items": {
+        "type": "string",
+        "nullable": false
+      }
+    },
+    "nst": {
+      "type": "integer",
+      "nullable": false
+    },
+    "dmin": {
+      "type": "number",
+      "nullable": true
+    },
+    "rms": {
+      "type": "number",
+      "nullable": false
+    },
+    "gap": {
+      "type": "integer",
+      "nullable": true
+    },
+    "magType": {
+      "type": "string",
+      "nullable": true
+    },
+    "type": {
+      "type": "string",
+      "nullable": false
+    },
+    "title": {
+      "type": "string",
+      "nullable": false
+    },
+    "longitude": {
+      "type": "number",
+      "nullable": false
+    },
+    "latitude": {
+      "type": "number",
+      "nullable": false
+    },
+    "depth_km": {
+      "type": "number",
+      "nullable": false
+    }
+  }
+}

@@ -18,7 +18,7 @@ from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
 from datetime import datetime
 from types import ModuleType
-from typing import Any
+from typing import Any, cast
 
 import httpx
 
@@ -71,24 +71,31 @@ def resolve_fetch(consumer: ConsumerConfig, job: JobConfig) -> FetchFn:
             f"{consumer.name}.{job.name}: {module.__name__} has no {job.fetch_function}(); "
             f"available: {available}"
         )
-    return fn
+    return cast(FetchFn, fn)
 
 
-def build_context(consumer: ConsumerConfig, job: JobConfig) -> JobContext:
+def build_context(
+    consumer: ConsumerConfig, job: JobConfig, lower_bound: datetime | None = None
+) -> JobContext:
+    """Build the fetch context. ``lower_bound`` defaults to the job's configured bound."""
     inc = job.incremental_loading
+    if lower_bound is None and inc:
+        lower_bound = inc.lower_bound_dt
     return JobContext(
         consumer=consumer,
         job=job,
         credentials=resolve_credentials(consumer),
         http=make_client(),
-        lower_bound=inc.lower_bound_dt if inc else None,
+        lower_bound=lower_bound,
     )
 
 
-def iter_records(consumer: ConsumerConfig, job: JobConfig) -> Iterator[Record]:
+def iter_records(
+    consumer: ConsumerConfig, job: JobConfig, lower_bound: datetime | None = None
+) -> Iterator[Record]:
     """Resolve the job's fetch function and stream its records to completion."""
     fetch = resolve_fetch(consumer, job)
-    ctx = build_context(consumer, job)
+    ctx = build_context(consumer, job, lower_bound)
     with ctx.http:
         for record in fetch(ctx):
             if not isinstance(record, dict):

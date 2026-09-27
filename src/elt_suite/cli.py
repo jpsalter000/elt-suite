@@ -63,12 +63,21 @@ def infer(consumer: str, job: JobOption = None) -> None:
 
 
 @app.command()
-def run(consumer: str, job: JobOption = None) -> None:
-    """Full extract-and-load of jobs into the consumer's destination."""
+def run(
+    consumer: str,
+    job: JobOption = None,
+    full_refresh: Annotated[
+        bool,
+        typer.Option(
+            "--full-refresh", help="Ignore saved state and read from the configured lower_bound."
+        ),
+    ] = False,
+) -> None:
+    """Extract-and-load jobs into the consumer's destination, resuming from saved state."""
     cfg, jobs = _selected(consumer, job)
     for j in jobs:
         try:
-            result = run_full(cfg, j)
+            result = run_full(cfg, j, full_refresh=full_refresh)
         except (ConfigError, InferenceError, LoadError) as exc:
             typer.secho(str(exc), fg="red", err=True)
             raise typer.Exit(1) from exc

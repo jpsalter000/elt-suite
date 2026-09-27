@@ -44,6 +44,10 @@ class Destination(Protocol):
         """Insert or update the run's row in ``<schema>._runs``."""
         ...
 
+    def last_watermark(self, schema: str, consumer: str, job: str) -> str | None:
+        """``max_incremental_value`` of the job's most recent successful run, if any."""
+        ...
+
     def close(self) -> None: ...
 
 

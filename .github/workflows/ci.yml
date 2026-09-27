@@ -1,0 +1,79 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  WAREHOUSE_DSN: postgresql://elt:elt@localhost:5432/warehouse
+
+jobs:
+  checks:
+    name: Lint, type-check, test
+    runs-on: ubuntu-latest
+    services:
+      warehouse:
+        image: postgres:16
+        env:
+          POSTGRES_USER: elt
+          POSTGRES_PASSWORD: elt
+          POSTGRES_DB: warehouse
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U elt -d warehouse"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv sync --locked
+      - name: Ruff lint
+        run: uv run ruff check .
+      - name: Ruff format
+        run: uv run ruff format --check .
+      - name: Pyright
+        run: uv run pyright
+      - name: Pytest (unit + Postgres integration)
+        run: uv run pytest -v -rs
+
+  demo:
+    name: Demo pipeline (live USGS -> Postgres)
+    needs: checks
+    runs-on: ubuntu-latest
+    services:
+      warehouse:
+        image: postgres:16
+        env:
+          POSTGRES_USER: elt
+          POSTGRES_PASSWORD: elt
+          POSTGRES_DB: warehouse
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U elt -d warehouse"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv sync --locked
+      # Uses the committed schemas, so this also catches drift between them and live data.
+      - name: First run (from configured lower_bound)
+        run: uv run elt run demo_usgs_extract_and_load
+      - name: Second run (resumes from saved watermark)
+        run: uv run elt run demo_usgs_extract_and_load
+      - name: Summarize runs
+        run: |
+          {
+            echo "### demo_usgs._runs"
+            echo '```'
+            psql "$WAREHOUSE_DSN" -c "SELECT job, status, records_loaded, lower_bound, max_incremental_value FROM demo_usgs._runs ORDER BY started_at"
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"

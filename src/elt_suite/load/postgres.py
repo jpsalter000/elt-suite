@@ -99,5 +99,18 @@ class PostgresDestination:
             [asdict(run)],
         )
 
+    def last_watermark(self, schema: str, consumer: str, job: str) -> str | None:
+        self._ensure(schema, RUNS_TABLE, RUNS_COLUMNS, ["run_id"])
+        row = self.conn.execute(
+            sql.SQL(
+                "SELECT max_incremental_value FROM {}.{} "
+                "WHERE consumer = %s AND job = %s AND status = 'succeeded' "
+                "AND max_incremental_value IS NOT NULL "
+                "ORDER BY finished_at DESC LIMIT 1"
+            ).format(sql.Identifier(schema), sql.Identifier(RUNS_TABLE)),
+            [consumer, job],
+        ).fetchone()
+        return row[0] if row else None
+
     def close(self) -> None:
         self.conn.close()

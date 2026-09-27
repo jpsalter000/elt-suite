@@ -1,9 +1,11 @@
 # elt-suite
 
+[![CI](https://github.com/jpsalter000/elt-suite/actions/workflows/ci.yml/badge.svg)](https://github.com/jpsalter000/elt-suite/actions/workflows/ci.yml)
+
 A small, config-driven extract-and-load framework. Each **consumer** (one company's integration with one source system, such as `abc_salesforce_extract_and_load`) is described by a JSON config. Two generic executors run any consumer's jobs:
 
 - **Schema inference** runs a job to completion, infers a type for every record, widens types where it can and fails on incompatible ones, then writes a JSON schema per job.
-- **Full extract and load** runs a job to completion and upserts it into the configured Postgres destination. Every record is stamped with the run's `run_id`, and every run is recorded in a `_runs` table.
+- **Full extract and load** runs a job to completion and upserts it into the configured Postgres destination. Incremental jobs resume from where the last successful run stopped. Every record is stamped with the run's `run_id`, and every run is recorded in a `_runs` table.
 
 Neither executor knows anything about Salesforce or NetSuite. Each one calls a source-specific **fetch function** through a small contract, so a new source only has to implement that contract.
 
@@ -34,6 +36,7 @@ src/elt_suite/
 src/consumers/
   salesforce/client.py                  # fetch_contacts, fetch_accounts, fetch_opportunities
   netsuite/client.py                    # fetch_customers, fetch_transactions
+  usgs/client.py                        # fetch_earthquakes, fetch_significant_earthquakes (no credentials)
 ```
 
 ## Consumer config
@@ -68,7 +71,7 @@ src/consumers/
 | `credentials` | Maps a logical credential name to the **environment variable** that holds it. Secrets never go in configs. |
 | `destination`, `target_schema` | Which destination from `destinations.json` to load into, and which schema to use there. |
 | `extra` | Free-form settings for the source client, such as API version or page size. |
-| `jobs[]` | `name`, `primary_keys`, and optionally `incremental_loading` (`incremental_key`, `lower_bound`, `datetime_format`) and `fetch` (overrides the function name). |
+| `jobs[]` | `name`, `primary_keys`, and optionally `incremental_loading` (`incremental_key`, `lower_bound`, `datetime_format`) `fetch` (overrides the function name), and `options` (source-specific settings for the job, such as query filters). |
 
 ## The consumer contract
 
@@ -111,33 +114,64 @@ Strings are tagged `date` or `date-time` when they are ISO 8601 or match the job
 ## Full extract and load
 
 ```bash
-uv run elt run abc_salesforce_extract_and_load        # all jobs
+uv run elt run abc_salesforce_extract_and_load                 # all jobs, resuming from state
+uv run elt run abc_salesforce_extract_and_load --full-refresh  # re-read from the configured lower_bound
 ```
 
 A run does the following:
 
 1. It requires `schemas/<consumer>/<job>.json`, which `elt infer` produces.
-2. It generates a `run_id` (UUID) and inserts a row into `<target_schema>._runs` with status `running`, a timestamp, and the `lower_bound` used.
-3. It creates the schema and table if they are missing. Column types come from the inferred schema: `BIGINT`, `DOUBLE PRECISION`, `TEXT`, `BOOLEAN`, `DATE`, `TIMESTAMPTZ`, or `JSONB` for objects and arrays. The table also gets `_run_id` and `_loaded_at` columns, and new fields become new columns.
-4. It streams records in batches, stamps each one with `_run_id`, and upserts on `primary_keys`. A field missing from the schema fails the run and asks you to re-infer.
-5. It updates the `_runs` row to `succeeded` or `failed`, with `finished_at`, `records_loaded`, `max_incremental_value`, and the `error` if there was one.
+2. For incremental jobs, it works out the lower bound (see below) and passes it to the fetch function as `ctx.lower_bound`.
+3. It generates a `run_id` (UUID) and inserts a row into `<target_schema>._runs` with status `running`, a timestamp, and the `lower_bound` used.
+4. It creates the schema and table if they are missing. Column types come from the inferred schema: `BIGINT`, `DOUBLE PRECISION`, `TEXT`, `BOOLEAN`, `DATE`, `TIMESTAMPTZ`, or `JSONB` for objects and arrays. The table also gets `_run_id` and `_loaded_at` columns, and new fields become new columns.
+5. It streams records in batches, stamps each one with `_run_id`, and upserts on `primary_keys`. A field missing from the schema fails the run and asks you to re-infer.
+6. It updates the `_runs` row to `succeeded` or `failed`, with `finished_at`, `records_loaded`, `max_incremental_value`, and the `error` if there was one.
 
-## Quickstart
+### Incremental state
+
+The `_runs` table doubles as the state store, so no separate state file or service is needed.
+
+- A run reads from the `max_incremental_value` of the job's most recent **successful** run. If there is no such run, or the configured `lower_bound` is later, it uses the configured `lower_bound`.
+- Failed runs never advance the watermark, so a failure is retried from the same point next time.
+- The bound is inclusive (`>=`). Records sitting exactly on the boundary are read again and upserted idempotently, so nothing is lost when several records share the same timestamp.
+- `--full-refresh` ignores state and re-reads from the configured `lower_bound`.
+- Watermarks are stored formatted with the job's `datetime_format`, so they parse back the same way.
+
+## Quickstart (no credentials needed)
+
+The `demo_usgs_extract_and_load` consumer reads the public [USGS Earthquake Catalog](https://earthquake.usgs.gov/fdsnws/event/1/), so you can run the whole pipeline without any accounts. All you need is [uv](https://docs.astral.sh/uv/) and Docker.
 
 ```bash
 uv sync
-cp .env.example .env        # fill in credentials
-docker compose up -d        # local Postgres on :5432
+cp .env.example .env                                  # WAREHOUSE_DSN for the local Postgres
+docker compose up -d                                  # Postgres on :5432
 uv run elt list
-uv run elt infer acme_netsuite_extract_and_load
-uv run elt run acme_netsuite_extract_and_load
+uv run elt infer demo_usgs_extract_and_load           # writes schemas/demo_usgs_extract_and_load/*.json
+uv run elt run demo_usgs_extract_and_load             # first run: everything since lower_bound
+uv run elt run demo_usgs_extract_and_load             # later runs: only events updated since the last run
 ```
+
+Then look at the results:
+
+```bash
+docker compose exec warehouse psql -U elt -d warehouse -c   "SELECT job, status, records_loaded, lower_bound, max_incremental_value FROM demo_usgs._runs ORDER BY started_at"
+```
+
+The earthquake data also shows inference at work. `mag` arrives as both `5` and `4.7` and widens to `number`, `felt` is nullable, `tz` is always null, and the comma-encoded `sources` field becomes `array<string>` (stored as `JSONB`). The generated schemas are committed in [`schemas/demo_usgs_extract_and_load/`](schemas/demo_usgs_extract_and_load/).
+
+The Salesforce and NetSuite consumers work the same way once their credentials are in `.env`.
 
 ## Development
 
 ```bash
-uv run pytest               # unit tests use an in-memory fake consumer
-uv run ruff check .
+uv run pytest               # unit tests use an in-memory fake consumer and a mocked USGS API
+uv run ruff check . && uv run ruff format --check .
+uv run pyright
 ```
 
 The Postgres end-to-end test is marked `integration`. It runs when `WAREHOUSE_DSN` is set, for example after `docker compose up -d`.
+
+[CI](.github/workflows/ci.yml) runs on every push and pull request in two jobs:
+
+- **checks:** ruff, pyright, and the full test suite against a Postgres service container, so the integration test always runs.
+- **demo:** runs the live USGS pipeline twice into a fresh Postgres, using the committed schemas. This shows the second run resuming from the first run's watermark, and it catches drift between the committed schemas and the live data. The resulting `_runs` table is posted to the job summary.
