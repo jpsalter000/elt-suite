@@ -3,7 +3,7 @@
 A small, config-driven extract-and-load framework. Each **consumer** (one company's integration with one source system, such as `abc_salesforce_extract_and_load`) is described by a JSON config. Two generic executors run any consumer's jobs:
 
 - **Schema inference** runs a job to completion, infers a type for every record, widens types where it can and fails on incompatible ones, then writes a JSON schema per job.
-- **Full extract and load** runs a job to completion and upserts it into the configured Postgres destination. Every record is stamped with the run's `run_id`, and every run is recorded in a `_runs` table.
+- **Full extract and load** runs a job to completion and upserts it into the configured Postgres destination. Incremental jobs resume from where the last successful run stopped. Every record is stamped with the run's `run_id`, and every run is recorded in a `_runs` table.
 
 Neither executor knows anything about Salesforce or NetSuite. Each one calls a source-specific **fetch function** through a small contract, so a new source only has to implement that contract.
 
@@ -111,16 +111,28 @@ Strings are tagged `date` or `date-time` when they are ISO 8601 or match the job
 ## Full extract and load
 
 ```bash
-uv run elt run abc_salesforce_extract_and_load        # all jobs
+uv run elt run abc_salesforce_extract_and_load                 # all jobs, resuming from state
+uv run elt run abc_salesforce_extract_and_load --full-refresh  # re-read from the configured lower_bound
 ```
 
 A run does the following:
 
 1. It requires `schemas/<consumer>/<job>.json`, which `elt infer` produces.
-2. It generates a `run_id` (UUID) and inserts a row into `<target_schema>._runs` with status `running`, a timestamp, and the `lower_bound` used.
-3. It creates the schema and table if they are missing. Column types come from the inferred schema: `BIGINT`, `DOUBLE PRECISION`, `TEXT`, `BOOLEAN`, `DATE`, `TIMESTAMPTZ`, or `JSONB` for objects and arrays. The table also gets `_run_id` and `_loaded_at` columns, and new fields become new columns.
-4. It streams records in batches, stamps each one with `_run_id`, and upserts on `primary_keys`. A field missing from the schema fails the run and asks you to re-infer.
-5. It updates the `_runs` row to `succeeded` or `failed`, with `finished_at`, `records_loaded`, `max_incremental_value`, and the `error` if there was one.
+2. For incremental jobs, it works out the lower bound (see below) and passes it to the fetch function as `ctx.lower_bound`.
+3. It generates a `run_id` (UUID) and inserts a row into `<target_schema>._runs` with status `running`, a timestamp, and the `lower_bound` used.
+4. It creates the schema and table if they are missing. Column types come from the inferred schema: `BIGINT`, `DOUBLE PRECISION`, `TEXT`, `BOOLEAN`, `DATE`, `TIMESTAMPTZ`, or `JSONB` for objects and arrays. The table also gets `_run_id` and `_loaded_at` columns, and new fields become new columns.
+5. It streams records in batches, stamps each one with `_run_id`, and upserts on `primary_keys`. A field missing from the schema fails the run and asks you to re-infer.
+6. It updates the `_runs` row to `succeeded` or `failed`, with `finished_at`, `records_loaded`, `max_incremental_value`, and the `error` if there was one.
+
+### Incremental state
+
+The `_runs` table doubles as the state store, so no separate state file or service is needed.
+
+- A run reads from the `max_incremental_value` of the job's most recent **successful** run. If there is no such run, or the configured `lower_bound` is later, it uses the configured `lower_bound`.
+- Failed runs never advance the watermark, so a failure is retried from the same point next time.
+- The bound is inclusive (`>=`). Records sitting exactly on the boundary are read again and upserted idempotently, so nothing is lost when several records share the same timestamp.
+- `--full-refresh` ignores state and re-reads from the configured `lower_bound`.
+- Watermarks are stored formatted with the job's `datetime_format`, so they parse back the same way.
 
 ## Quickstart
 

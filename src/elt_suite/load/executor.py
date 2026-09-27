@@ -4,6 +4,11 @@ Consumes any configured job to completion through its consumer's fetch function
 and upserts the records into the consumer's configured destination. Every record
 is stamped with the run's ``run_id``, and the run itself is recorded in
 ``<target_schema>._runs``.
+
+Incremental jobs resume from state: the lower bound of a run is the
+``max_incremental_value`` of the job's last successful run (or the configured
+``lower_bound`` if that is later, or if there is no prior run). The bound is
+inclusive, so boundary records are re-read and idempotently upserted.
 """
 
 from __future__ import annotations
@@ -75,7 +80,7 @@ class _RecordPreparer:
             return
         parsed = raw if isinstance(raw, datetime) else self._parse_datetime(str(raw))
         if self.max_incremental is None or parsed > self.max_incremental[0]:
-            self.max_incremental = (parsed, str(raw))
+            self.max_incremental = (parsed, self.inc.format(parsed))
 
     def __call__(self, index: int, record: Record) -> dict[str, Any]:
         unknown = record.keys() - self.schema.fields.keys()
@@ -102,8 +107,10 @@ def load_records(
     schema: JobSchema,
     records: Iterator[Record],
     destination: Destination,
+    lower_bound: datetime | None = None,
     run_id: UUID | None = None,
 ) -> RunResult:
+    """Load ``records`` (already filtered at ``lower_bound``) and record the run."""
     run_id = run_id or uuid4()
     target = consumer.target_schema
     inc = job.incremental_loading
@@ -117,7 +124,7 @@ def load_records(
         job=job.name,
         status="running",
         started_at=datetime.now(UTC),
-        lower_bound=inc.lower_bound if inc else None,
+        lower_bound=inc.format(lower_bound) if inc and lower_bound else None,
     )
     destination.record_run(target, run)
     log.info("run %s started for %s.%s", run_id, consumer.name, job.name)
@@ -145,7 +152,37 @@ def load_records(
     return RunResult(run_id, loaded, run.max_incremental_value)
 
 
-def run_full(consumer: ConsumerConfig, job: JobConfig) -> RunResult:
+def resolve_lower_bound(
+    consumer: ConsumerConfig, job: JobConfig, destination: Destination, full_refresh: bool = False
+) -> datetime | None:
+    """Where this run should start reading from; see the module docstring."""
+    inc = job.incremental_loading
+    if inc is None:
+        return None
+    configured = inc.lower_bound_dt
+    if full_refresh:
+        return configured
+    watermark = destination.last_watermark(consumer.target_schema, consumer.name, job.name)
+    if watermark is None:
+        return configured
+    return max(configured, inc.parse(watermark))
+
+
+def extract_and_load(
+    consumer: ConsumerConfig,
+    job: JobConfig,
+    schema: JobSchema,
+    destination: Destination,
+    full_refresh: bool = False,
+) -> RunResult:
+    lower_bound = resolve_lower_bound(consumer, job, destination, full_refresh)
+    if lower_bound is not None:
+        log.info("%s.%s: reading from %s", consumer.name, job.name, lower_bound.isoformat())
+    records = iter_records(consumer, job, lower_bound)
+    return load_records(consumer, job, schema, records, destination, lower_bound)
+
+
+def run_full(consumer: ConsumerConfig, job: JobConfig, full_refresh: bool = False) -> RunResult:
     schema = JobSchema.load(consumer.name, job.name)
     if schema.primary_keys != job.primary_keys:
         raise LoadError(
@@ -154,6 +191,6 @@ def run_full(consumer: ConsumerConfig, job: JobConfig) -> RunResult:
         )
     destination = connect_destination(consumer.destination)
     try:
-        return load_records(consumer, job, schema, iter_records(consumer, job), destination)
+        return extract_and_load(consumer, job, schema, destination, full_refresh)
     finally:
         destination.close()
