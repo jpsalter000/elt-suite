@@ -1,0 +1,6 @@
+{
+  "warehouse": {
+    "type": "postgres",
+    "dsn_env": "WAREHOUSE_DSN"
+  }
+}

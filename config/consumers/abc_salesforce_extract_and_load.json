@@ -1,0 +1,44 @@
+{
+  "company": "abc",
+  "source_system": "salesforce",
+  "base_url": "https://abc.my.salesforce.com",
+  "credentials": {
+    "client_id": "ABC_SF_CLIENT_ID",
+    "client_secret": "ABC_SF_CLIENT_SECRET"
+  },
+  "destination": "warehouse",
+  "target_schema": "abc_salesforce",
+  "extra": {
+    "api_version": "v61.0",
+    "page_size": 2000
+  },
+  "jobs": [
+    {
+      "name": "contacts",
+      "primary_keys": ["Id"],
+      "incremental_loading": {
+        "incremental_key": "LastModifiedDate",
+        "lower_bound": "2024-01-01T00:00:00.000+0000",
+        "datetime_format": "%Y-%m-%dT%H:%M:%S.%f%z"
+      }
+    },
+    {
+      "name": "accounts",
+      "primary_keys": ["Id"],
+      "incremental_loading": {
+        "incremental_key": "LastModifiedDate",
+        "lower_bound": "2024-01-01T00:00:00.000+0000",
+        "datetime_format": "%Y-%m-%dT%H:%M:%S.%f%z"
+      }
+    },
+    {
+      "name": "opportunities",
+      "primary_keys": ["Id"],
+      "incremental_loading": {
+        "incremental_key": "SystemModstamp",
+        "lower_bound": "2024-01-01T00:00:00.000+0000",
+        "datetime_format": "%Y-%m-%dT%H:%M:%S.%f%z"
+      }
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "company": "acme",
+  "source_system": "netsuite",
+  "base_url": "https://{account_id}.suitetalk.api.netsuite.com",
+  "credentials": {
+    "account_id": "ACME_NS_ACCOUNT_ID",
+    "consumer_key": "ACME_NS_CONSUMER_KEY",
+    "consumer_secret": "ACME_NS_CONSUMER_SECRET",
+    "token_id": "ACME_NS_TOKEN_ID",
+    "token_secret": "ACME_NS_TOKEN_SECRET"
+  },
+  "destination": "warehouse",
+  "target_schema": "acme_netsuite",
+  "extra": {
+    "page_size": 1000
+  },
+  "jobs": [
+    {
+      "name": "customers",
+      "primary_keys": ["id"],
+      "incremental_loading": {
+        "incremental_key": "lastmodifieddate",
+        "lower_bound": "2024-01-01 00:00:00",
+        "datetime_format": "%Y-%m-%d %H:%M:%S"
+      }
+    },
+    {
+      "name": "transactions",
+      "primary_keys": ["id"],
+      "incremental_loading": {
+        "incremental_key": "lastmodifieddate",
+        "lower_bound": "2024-01-01 00:00:00",
+        "datetime_format": "%Y-%m-%d %H:%M:%S"
+      }
+    }
+  ]
+}
