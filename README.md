@@ -1,5 +1,7 @@
 # elt-suite
 
+[![CI](https://github.com/jpsalter000/elt-suite/actions/workflows/ci.yml/badge.svg)](https://github.com/jpsalter000/elt-suite/actions/workflows/ci.yml)
+
 A small, config-driven extract-and-load framework. Each **consumer** (one company's integration with one source system, such as `abc_salesforce_extract_and_load`) is described by a JSON config. Two generic executors run any consumer's jobs:
 
 - **Schema inference** runs a job to completion, infers a type for every record, widens types where it can and fails on incompatible ones, then writes a JSON schema per job.
@@ -162,8 +164,14 @@ The Salesforce and NetSuite consumers work the same way once their credentials a
 ## Development
 
 ```bash
-uv run pytest               # unit tests use an in-memory fake consumer
-uv run ruff check .
+uv run pytest               # unit tests use an in-memory fake consumer and a mocked USGS API
+uv run ruff check . && uv run ruff format --check .
+uv run pyright
 ```
 
 The Postgres end-to-end test is marked `integration`. It runs when `WAREHOUSE_DSN` is set, for example after `docker compose up -d`.
+
+[CI](.github/workflows/ci.yml) runs on every push and pull request in two jobs:
+
+- **checks:** ruff, pyright, and the full test suite against a Postgres service container, so the integration test always runs.
+- **demo:** runs the live USGS pipeline twice into a fresh Postgres, using the committed schemas. This shows the second run resuming from the first run's watermark, and it catches drift between the committed schemas and the live data. The resulting `_runs` table is posted to the job summary.

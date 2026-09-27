@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import LiteralString
 
 from elt_suite.inference.executor import JobSchema
 from elt_suite.inference.types import (
@@ -26,21 +27,25 @@ RUNS_TABLE = "_runs"
 @dataclass(frozen=True)
 class Column:
     name: str
-    pg_type: str
+    pg_type: LiteralString  # interpolated into DDL, so only fixed SQL type names
     nullable: bool = True
 
 
-def pg_type(t: SchemaType) -> str:
+_STRING_TYPES: dict[str | None, LiteralString] = {DATE: "DATE", DATE_TIME: "TIMESTAMPTZ"}
+_TYPES: dict[str, LiteralString] = {
+    NULL: "TEXT",  # only ever seen null: keep it loadable, narrow later
+    BOOLEAN: "BOOLEAN",
+    INTEGER: "BIGINT",
+    NUMBER: "DOUBLE PRECISION",
+    OBJECT: "JSONB",
+    ARRAY: "JSONB",
+}
+
+
+def pg_type(t: SchemaType) -> LiteralString:
     if t.type == STRING:
-        return {DATE: "DATE", DATE_TIME: "TIMESTAMPTZ"}.get(t.format or "", "TEXT")
-    return {
-        NULL: "TEXT",  # only ever seen null: keep it loadable, narrow later
-        BOOLEAN: "BOOLEAN",
-        INTEGER: "BIGINT",
-        NUMBER: "DOUBLE PRECISION",
-        OBJECT: "JSONB",
-        ARRAY: "JSONB",
-    }[t.type]
+        return _STRING_TYPES.get(t.format, "TEXT")
+    return _TYPES[t.type]
 
 
 def table_columns(schema: JobSchema) -> list[Column]:

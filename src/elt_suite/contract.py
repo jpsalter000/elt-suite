@@ -18,7 +18,7 @@ from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
 from datetime import datetime
 from types import ModuleType
-from typing import Any
+from typing import Any, cast
 
 import httpx
 
@@ -71,7 +71,7 @@ def resolve_fetch(consumer: ConsumerConfig, job: JobConfig) -> FetchFn:
             f"{consumer.name}.{job.name}: {module.__name__} has no {job.fetch_function}(); "
             f"available: {available}"
         )
-    return fn
+    return cast(FetchFn, fn)
 
 
 def build_context(

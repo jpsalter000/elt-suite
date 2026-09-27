@@ -17,6 +17,7 @@ elt = "elt_suite.cli:app"
 
 [dependency-groups]
 dev = [
+    "pyright>=1.1.414",
     "pytest>=8.3",
     "ruff>=0.6",
 ]
@@ -41,3 +42,7 @@ select = ["E", "F", "I", "B", "UP", "SIM"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["elt_suite", "consumers", "conftest"]
+
+[tool.pyright]
+include = ["src"]
+pythonVersion = "3.12"
