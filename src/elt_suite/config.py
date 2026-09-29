@@ -9,7 +9,7 @@ list describing each dataset to extract.
 from __future__ import annotations
 
 import json
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Literal
 
@@ -18,6 +18,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 from elt_suite import paths
 
 CONSUMER_SUFFIX = "_extract_and_load"
+EPOCH = "epoch"  # datetime_format for unix-second timestamps
 IDENTIFIER = r"^[a-z][a-z0-9_]*$"
 
 
@@ -30,14 +31,22 @@ class _Strict(BaseModel):
 
 
 class IncrementalLoading(_Strict):
+    """How a job reads incrementally.
+
+    ``datetime_format`` is a ``strptime`` format, or ``"epoch"`` for unix seconds.
+    ``lookback_seconds`` re-reads that much before the saved watermark on each run,
+    for sources whose updates become visible after their timestamp (late arrivals).
+    """
+
     incremental_key: str
     lower_bound: str
     datetime_format: str
+    lookback_seconds: int = Field(default=0, ge=0)
 
     @model_validator(mode="after")
     def _lower_bound_matches_format(self) -> IncrementalLoading:
         try:
-            datetime.strptime(self.lower_bound, self.datetime_format)
+            self.parse(self.lower_bound)
         except ValueError as exc:
             raise ValueError(
                 f"lower_bound {self.lower_bound!r} does not match "
@@ -45,10 +54,21 @@ class IncrementalLoading(_Strict):
             ) from exc
         return self
 
-    def parse(self, value: str) -> datetime:
-        return datetime.strptime(value, self.datetime_format)
+    @property
+    def is_epoch(self) -> bool:
+        return self.datetime_format == EPOCH
+
+    def parse(self, value: str | int | float) -> datetime:
+        if self.is_epoch:
+            try:
+                return datetime.fromtimestamp(int(value), UTC)
+            except (TypeError, ValueError, OverflowError) as exc:
+                raise ValueError(f"{value!r} is not unix seconds") from exc
+        return datetime.strptime(str(value), self.datetime_format)
 
     def format(self, value: datetime) -> str:
+        if self.is_epoch:
+            return str(int(value.timestamp()))
         return value.strftime(self.datetime_format)
 
     @property

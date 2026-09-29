@@ -6,8 +6,9 @@ is stamped with the run's ``run_id``, and the run itself is recorded in
 ``<target_schema>._runs``.
 
 Incremental jobs resume from state: the lower bound of a run is the
-``max_incremental_value`` of the job's last successful run (or the configured
-``lower_bound`` if that is later, or if there is no prior run). The bound is
+``max_incremental_value`` of the job's last successful run, minus the job's
+``lookback_seconds`` (or the configured ``lower_bound`` if that is later, or if
+there is no prior run). The bound is
 inclusive, so boundary records are re-read and idempotently upserted.
 """
 
@@ -16,7 +17,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from itertools import batched
 from typing import Any
 from uuid import UUID, uuid4
@@ -78,7 +79,12 @@ class _RecordPreparer:
         raw = record.get(self.inc.incremental_key)
         if raw is None:
             return
-        parsed = raw if isinstance(raw, datetime) else self._parse_datetime(str(raw))
+        if isinstance(raw, datetime):
+            parsed = raw
+        elif self.inc.is_epoch:
+            parsed = self.inc.parse(raw)
+        else:
+            parsed = self._parse_datetime(str(raw))
         if self.max_incremental is None or parsed > self.max_incremental[0]:
             self.max_incremental = (parsed, self.inc.format(parsed))
 
@@ -165,7 +171,8 @@ def resolve_lower_bound(
     watermark = destination.last_watermark(consumer.target_schema, consumer.name, job.name)
     if watermark is None:
         return configured
-    return max(configured, inc.parse(watermark))
+    resume_from = inc.parse(watermark) - timedelta(seconds=inc.lookback_seconds)
+    return max(configured, resume_from)
 
 
 def extract_and_load(
