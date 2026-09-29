@@ -60,3 +60,38 @@ def test_repo_configs_are_valid(monkeypatch):
     assert "acme_netsuite_extract_and_load" in names
     for name in names:
         load_consumer(name)
+
+
+# --- incremental loading options ------------------------------------------------------
+
+
+def _incremental(**overrides):
+    from elt_suite.config import IncrementalLoading
+
+    fields = {
+        "incremental_key": "modified",
+        "lower_bound": "1767225600",
+        "datetime_format": "epoch",
+        **overrides,
+    }
+    return IncrementalLoading(**fields)
+
+
+def test_epoch_datetime_format_round_trips_unix_seconds():
+    from datetime import UTC, datetime
+
+    inc = _incremental()
+    assert inc.lower_bound_dt == datetime(2026, 1, 1, tzinfo=UTC)
+    assert inc.format(datetime(2026, 1, 1, tzinfo=UTC)) == "1767225600"
+    assert inc.parse(1767225600) == inc.parse("1767225600") == inc.lower_bound_dt
+
+
+def test_epoch_lower_bound_must_be_unix_seconds():
+    with pytest.raises(ValueError, match="does not match datetime_format 'epoch'"):
+        _incremental(lower_bound="2026-01-01")
+
+
+def test_lookback_defaults_to_zero_and_rejects_negatives():
+    assert _incremental().lookback_seconds == 0
+    with pytest.raises(ValueError, match="lookback_seconds"):
+        _incremental(lookback_seconds=-1)
