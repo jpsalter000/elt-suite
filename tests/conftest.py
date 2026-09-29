@@ -10,6 +10,8 @@ import json
 import sys
 import types
 from collections.abc import Iterator
+from dataclasses import replace
+from uuid import UUID
 
 import pytest
 
@@ -81,3 +83,38 @@ def write_consumer(home, config: dict) -> str:
 @pytest.fixture
 def fake_consumer(elt_home):
     return load_consumer(write_consumer(elt_home, FAKE_CONFIG))
+
+
+class MemoryDestination:
+    """In-memory Destination used to test the executor without a database."""
+
+    def __init__(self):
+        self.tables: dict[tuple[str, str], dict[tuple, dict]] = {}
+        self.runs: dict[UUID, list] = {}  # run_id -> every recorded state of the run
+
+    def ensure_table(self, schema, table, columns, primary_keys):
+        self.tables.setdefault((schema, table), {})
+
+    def upsert(self, schema, table, columns, primary_keys, rows):
+        target = self.tables[(schema, table)]
+        for row in rows:
+            target[tuple(row[k] for k in primary_keys)] = {c: row.get(c) for c in columns}
+
+    def record_run(self, schema, run):
+        self.runs.setdefault(run.run_id, []).append(replace(run))
+        self.last_run = replace(run)
+
+    def last_watermark(self, schema, consumer, job):
+        finished = [
+            states[-1]
+            for states in self.runs.values()
+            if states[-1].job == job
+            and states[-1].status == "succeeded"
+            and states[-1].max_incremental_value
+        ]
+        return (
+            max(finished, key=lambda r: r.finished_at).max_incremental_value if finished else None
+        )
+
+    def close(self):
+        pass

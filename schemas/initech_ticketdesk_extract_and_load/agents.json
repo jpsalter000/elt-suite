@@ -1,0 +1,46 @@
+{
+  "consumer": "initech_ticketdesk_extract_and_load",
+  "job": "agents",
+  "primary_keys": [
+    "id"
+  ],
+  "incremental_key": "modified_at",
+  "generated_at": "2026-09-29T16:02:23+00:00",
+  "records_scanned": 14,
+  "fields": {
+    "id": {
+      "type": "integer",
+      "nullable": false
+    },
+    "name": {
+      "type": "string",
+      "nullable": false
+    },
+    "email": {
+      "type": "string",
+      "nullable": false
+    },
+    "team": {
+      "type": "string",
+      "nullable": false
+    },
+    "active": {
+      "type": "boolean",
+      "nullable": false
+    },
+    "max_open_tickets": {
+      "type": "integer",
+      "nullable": false
+    },
+    "created_at": {
+      "type": "string",
+      "nullable": false,
+      "format": "date-time"
+    },
+    "modified_at": {
+      "type": "string",
+      "nullable": false,
+      "format": "date-time"
+    }
+  }
+}

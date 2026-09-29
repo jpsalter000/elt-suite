@@ -1,0 +1,34 @@
+{
+  "company": "globex",
+  "source_system": "shopfront",
+  "base_url": "http://localhost:8001",
+  "credentials": {
+    "client_id": "GLOBEX_SHOPFRONT_CLIENT_ID",
+    "client_secret": "GLOBEX_SHOPFRONT_CLIENT_SECRET"
+  },
+  "destination": "warehouse",
+  "target_schema": "globex_shopfront",
+  "extra": {
+    "page_size": 100
+  },
+  "jobs": [
+    {
+      "name": "customers",
+      "primary_keys": ["id"],
+      "incremental_loading": {
+        "incremental_key": "updated_at",
+        "lower_bound": "2026-01-01T00:00:00Z",
+        "datetime_format": "%Y-%m-%dT%H:%M:%S%z"
+      }
+    },
+    {
+      "name": "orders",
+      "primary_keys": ["id"],
+      "incremental_loading": {
+        "incremental_key": "updated_at",
+        "lower_bound": "2026-01-01T00:00:00Z",
+        "datetime_format": "%Y-%m-%dT%H:%M:%S%z"
+      }
+    }
+  ]
+}

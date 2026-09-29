@@ -1,0 +1,76 @@
+{
+  "consumer": "globex_shopfront_extract_and_load",
+  "job": "customers",
+  "primary_keys": [
+    "id"
+  ],
+  "incremental_key": "updated_at",
+  "generated_at": "2026-09-29T16:02:16+00:00",
+  "records_scanned": 180,
+  "fields": {
+    "id": {
+      "type": "string",
+      "nullable": false
+    },
+    "email": {
+      "type": "string",
+      "nullable": false
+    },
+    "name": {
+      "type": "string",
+      "nullable": false
+    },
+    "tier": {
+      "type": "string",
+      "nullable": true
+    },
+    "marketing_opt_in": {
+      "type": "boolean",
+      "nullable": false
+    },
+    "lifetime_value": {
+      "type": "number",
+      "nullable": false
+    },
+    "address": {
+      "type": "object",
+      "nullable": true,
+      "properties": {
+        "line1": {
+          "type": "string",
+          "nullable": false
+        },
+        "city": {
+          "type": "string",
+          "nullable": false
+        },
+        "country": {
+          "type": "string",
+          "nullable": false
+        },
+        "postal_code": {
+          "type": "string",
+          "nullable": false
+        }
+      }
+    },
+    "tags": {
+      "type": "array",
+      "nullable": false,
+      "items": {
+        "type": "string",
+        "nullable": false
+      }
+    },
+    "created_at": {
+      "type": "string",
+      "nullable": false,
+      "format": "date-time"
+    },
+    "updated_at": {
+      "type": "string",
+      "nullable": false,
+      "format": "date-time"
+    }
+  }
+}

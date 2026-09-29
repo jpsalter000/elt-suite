@@ -1,0 +1,82 @@
+{
+  "consumer": "globex_shopfront_extract_and_load",
+  "job": "orders",
+  "primary_keys": [
+    "id"
+  ],
+  "incremental_key": "updated_at",
+  "generated_at": "2026-09-29T16:02:18+00:00",
+  "records_scanned": 540,
+  "fields": {
+    "id": {
+      "type": "string",
+      "nullable": false
+    },
+    "customer_id": {
+      "type": "string",
+      "nullable": false
+    },
+    "status": {
+      "type": "string",
+      "nullable": false
+    },
+    "currency": {
+      "type": "string",
+      "nullable": false
+    },
+    "total": {
+      "type": "number",
+      "nullable": false
+    },
+    "discount_code": {
+      "type": "string",
+      "nullable": true
+    },
+    "line_items": {
+      "type": "array",
+      "nullable": false,
+      "items": {
+        "type": "object",
+        "nullable": false,
+        "properties": {
+          "sku": {
+            "type": "string",
+            "nullable": false
+          },
+          "quantity": {
+            "type": "integer",
+            "nullable": false
+          },
+          "unit_price": {
+            "type": "number",
+            "nullable": false
+          }
+        }
+      }
+    },
+    "shipping": {
+      "type": "object",
+      "nullable": false,
+      "properties": {
+        "method": {
+          "type": "string",
+          "nullable": false
+        },
+        "cost": {
+          "type": "number",
+          "nullable": false
+        }
+      }
+    },
+    "placed_at": {
+      "type": "string",
+      "nullable": false,
+      "format": "date-time"
+    },
+    "updated_at": {
+      "type": "string",
+      "nullable": false,
+      "format": "date-time"
+    }
+  }
+}

@@ -37,6 +37,10 @@ src/consumers/
   salesforce/client.py                  # fetch_contacts, fetch_accounts, fetch_opportunities
   netsuite/client.py                    # fetch_customers, fetch_transactions
   usgs/client.py                        # fetch_earthquakes, fetch_significant_earthquakes (no credentials)
+  shopfront/client.py                   # fetch_customers, fetch_orders (mock API, OAuth2 + refresh)
+  ticketdesk/client.py                  # fetch_tickets, fetch_agents (mock API, API key)
+src/mock_apis/                          # two mock REST APIs served by `elt-mock`
+  shopfront/  ticketdesk/  cli.py
 ```
 
 ## Consumer config
@@ -161,10 +165,49 @@ The earthquake data also shows inference at work. `mag` arrives as both `5` and 
 
 The Salesforce and NetSuite consumers work the same way once their credentials are in `.env`.
 
-## Development
+## Mock APIs
+
+Two mock REST APIs ship with the repo so the harder parts of extraction can be exercised offline and deterministically. Each has seeded data and its own authentication, pagination and error style, and each has a full consumer, config and committed schema.
+
+| | Shopfront (`globex_shopfront`) | Ticketdesk (`initech_ticketdesk`) |
+| --- | --- | --- |
+| Domain | E-commerce: `customers`, `orders` | Support desk: `tickets`, `agents` |
+| Auth | OAuth2 client credentials; short-lived bearer tokens; single-use rotating refresh tokens | Static key in the `X-API-Key` header |
+| Pagination | Keyset cursor in the body (`pagination.next_cursor`, `has_more`) | `page`/`per_page` with `Link` (`rel="next"`, `rel="last"`) and `X-Total-Count` headers |
+| Incremental filter | `updated_since`, ISO 8601 with timezone, **inclusive** | `modified_after`, `YYYY-MM-DD HH:MM:SS` UTC, **exclusive** |
+| Errors | `400 {"error": {"code", "message", "details": [{"param", "message"}]}}` | `422 {"message", "errors": [{"field", "message"}]}` |
+| Local port | 8001 | 8002 |
+
+Every invalid parameter is reported at once, with the accepted values or format. For example, `GET /v1/orders?limit=0&updated_since=yesterday` returns:
+
+```json
+{"error": {"code": "invalid_parameters", "message": "2 invalid parameters: limit, updated_since",
+  "details": [
+    {"param": "limit", "message": "must be between 1 and 100; got 0"},
+    {"param": "updated_since", "message": "must be an ISO 8601 timestamp with a timezone, e.g. 2026-05-01T00:00:00Z; got 'yesterday'"}]}}
+```
+
+**What the consumers handle:**
+
+- **Shopfront:** when an access token expires partway through pagination, the client exchanges the refresh token and retries the page. If the refresh token is rejected, it re-authenticates from scratch.
+- **Ticketdesk:** `modified_after` is exclusive, timestamps have one-second resolution, and several tickets share each hourly `modified_at`. Passing the watermark as-is would silently drop records, so the client sends `lower_bound - 1s` to keep elt-suite's inclusive semantics. A test pins this with colliding timestamps.
+- **Both:** API errors surface as `SourceError` with the API's own explanation. For example: `Shopfront token request (client_credentials) failed: 401 invalid_client: client_id or client_secret is incorrect`.
+
+Run them locally (the demo credentials are in `.env.example`):
 
 ```bash
-uv run pytest               # unit tests use an in-memory fake consumer and a mocked USGS API
+uv run elt-mock shopfront        # http://localhost:8001/docs
+uv run elt-mock ticketdesk       # http://localhost:8002/docs
+uv run elt run globex_shopfront_extract_and_load
+uv run elt run initech_ticketdesk_extract_and_load
+```
+
+## Development
+
+This repo is **test-first**. Every change starts with a failing test, and the commit history shows it: each feature lands as a `test:` commit that specifies it, followed by the `feat:` commit that makes it pass. API tests cover three cases: valid queries that return data, valid queries that return nothing, and invalid queries, which must produce a helpful error.
+
+```bash
+uv run pytest               # fake consumer, mocked USGS, and both mock APIs served in-process
 uv run ruff check . && uv run ruff format --check .
 uv run pyright
 ```
@@ -174,4 +217,4 @@ The Postgres end-to-end test is marked `integration`. It runs when `WAREHOUSE_DS
 [CI](.github/workflows/ci.yml) runs on every push and pull request in two jobs:
 
 - **checks:** ruff, pyright, and the full test suite against a Postgres service container, so the integration test always runs.
-- **demo:** runs the live USGS pipeline twice into a fresh Postgres, using the committed schemas. This shows the second run resuming from the first run's watermark, and it catches drift between the committed schemas and the live data. The resulting `_runs` table is posted to the job summary.
+- **demo:** runs the live USGS pipeline and both mock-API pipelines twice each into a fresh Postgres, using the committed schemas. This shows the second run resuming from the first run's watermark, and it catches drift between the committed schemas and the live data. The resulting `_runs` table is posted to the job summary.

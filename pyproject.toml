@@ -14,6 +14,7 @@ dependencies = [
 
 [project.scripts]
 elt = "elt_suite.cli:app"
+elt-mock = "mock_apis.cli:main"
 
 [dependency-groups]
 dev = [
@@ -21,17 +22,25 @@ dev = [
     "pytest>=8.3",
     "ruff>=0.6",
 ]
+mock = [
+    "fastapi>=0.115",
+    "uvicorn>=0.30",
+]
+
+[tool.uv]
+default-groups = ["dev", "mock"]
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/elt_suite", "src/consumers"]
+packages = ["src/elt_suite", "src/consumers", "src/mock_apis"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 markers = ["integration: requires a running Postgres (set WAREHOUSE_DSN)"]
+filterwarnings = ["ignore:Using `httpx` with `starlette.testclient`"]
 
 [tool.ruff]
 line-length = 100
@@ -41,7 +50,7 @@ target-version = "py312"
 select = ["E", "F", "I", "B", "UP", "SIM"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["elt_suite", "consumers", "conftest"]
+known-first-party = ["elt_suite", "consumers", "mock_apis", "conftest"]
 
 [tool.pyright]
 include = ["src"]

@@ -1,0 +1,86 @@
+{
+  "consumer": "initech_ticketdesk_extract_and_load",
+  "job": "tickets",
+  "primary_keys": [
+    "id"
+  ],
+  "incremental_key": "modified_at",
+  "generated_at": "2026-09-29T16:02:21+00:00",
+  "records_scanned": 420,
+  "fields": {
+    "id": {
+      "type": "integer",
+      "nullable": false
+    },
+    "subject": {
+      "type": "string",
+      "nullable": false
+    },
+    "status": {
+      "type": "string",
+      "nullable": false
+    },
+    "priority": {
+      "type": "string",
+      "nullable": false
+    },
+    "requester": {
+      "type": "object",
+      "nullable": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "nullable": false
+        },
+        "email": {
+          "type": "string",
+          "nullable": false
+        }
+      }
+    },
+    "assignee_id": {
+      "type": "integer",
+      "nullable": true
+    },
+    "tags": {
+      "type": "array",
+      "nullable": false,
+      "items": {
+        "type": "string",
+        "nullable": false
+      }
+    },
+    "satisfaction_score": {
+      "type": "integer",
+      "nullable": true
+    },
+    "time_spent_hours": {
+      "type": "number",
+      "nullable": false
+    },
+    "custom_fields": {
+      "type": "object",
+      "nullable": false,
+      "properties": {
+        "plan": {
+          "type": "string",
+          "nullable": false
+        },
+        "region": {
+          "type": "string",
+          "nullable": true
+        }
+      }
+    },
+    "created_at": {
+      "type": "string",
+      "nullable": false,
+      "format": "date-time"
+    },
+    "modified_at": {
+      "type": "string",
+      "nullable": false,
+      "format": "date-time"
+    }
+  }
+}
