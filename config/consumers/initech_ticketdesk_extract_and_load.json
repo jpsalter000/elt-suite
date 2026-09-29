@@ -1,0 +1,33 @@
+{
+  "company": "initech",
+  "source_system": "ticketdesk",
+  "base_url": "http://localhost:8002",
+  "credentials": {
+    "api_key": "INITECH_TICKETDESK_API_KEY"
+  },
+  "destination": "warehouse",
+  "target_schema": "initech_ticketdesk",
+  "extra": {
+    "page_size": 100
+  },
+  "jobs": [
+    {
+      "name": "tickets",
+      "primary_keys": ["id"],
+      "incremental_loading": {
+        "incremental_key": "modified_at",
+        "lower_bound": "2026-01-01 00:00:00",
+        "datetime_format": "%Y-%m-%d %H:%M:%S"
+      }
+    },
+    {
+      "name": "agents",
+      "primary_keys": ["id"],
+      "incremental_loading": {
+        "incremental_key": "modified_at",
+        "lower_bound": "2026-01-01 00:00:00",
+        "datetime_format": "%Y-%m-%d %H:%M:%S"
+      }
+    }
+  ]
+}

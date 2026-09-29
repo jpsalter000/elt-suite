@@ -9,6 +9,7 @@ import typer
 from dotenv import load_dotenv
 
 from elt_suite.config import ConfigError, ConsumerConfig, JobConfig, list_consumers, load_consumer
+from elt_suite.contract import SourceError
 from elt_suite.inference import InferenceError, run_inference
 from elt_suite.load import LoadError, run_full
 
@@ -56,7 +57,7 @@ def infer(consumer: str, job: JobOption = None) -> None:
     for j in jobs:
         try:
             path = run_inference(cfg, j)
-        except (ConfigError, InferenceError) as exc:
+        except (ConfigError, InferenceError, SourceError) as exc:
             typer.secho(str(exc), fg="red", err=True)
             raise typer.Exit(1) from exc
         typer.secho(f"{cfg.name}.{j.name}: schema written to {path}", fg="green")
@@ -78,7 +79,7 @@ def run(
     for j in jobs:
         try:
             result = run_full(cfg, j, full_refresh=full_refresh)
-        except (ConfigError, InferenceError, LoadError) as exc:
+        except (ConfigError, InferenceError, LoadError, SourceError) as exc:
             typer.secho(str(exc), fg="red", err=True)
             raise typer.Exit(1) from exc
         typer.secho(

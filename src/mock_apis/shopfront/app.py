@@ -64,6 +64,7 @@ class TokenStore:
     ttl: timedelta
     access: dict[str, datetime] = field(default_factory=dict)  # token -> expiry
     refresh: dict[str, bool] = field(default_factory=dict)  # token -> already used
+    refreshes: int = 0  # successful refresh-token exchanges, for observability
 
     def issue(self) -> dict[str, Any]:
         access, refresh = secrets.token_urlsafe(24), secrets.token_urlsafe(24)
@@ -227,6 +228,7 @@ def create_app(
         key: sorted(rows, key=lambda r: (r["updated_at"], r["id"])) for key, rows in data.items()
     }
     tokens = TokenStore(clock or (lambda: datetime.now(UTC)), timedelta(seconds=token_ttl_seconds))
+    app.state.tokens = tokens
 
     @app.exception_handler(ApiError)
     async def _api_error(_: Request, exc: ApiError) -> JSONResponse:
@@ -271,6 +273,7 @@ def create_app(
                     "grant_type=client_credentials",
                 )
             tokens.refresh[refresh] = True
+            tokens.refreshes += 1
             return tokens.issue()
         raise ApiError(
             400,

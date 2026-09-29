@@ -31,6 +31,10 @@ CLIENTS_PACKAGE = "consumers"
 Record = dict[str, Any]
 
 
+class SourceError(Exception):
+    """A source API rejected a request; the message carries the API's own explanation."""
+
+
 @dataclass
 class JobContext:
     consumer: ConsumerConfig
