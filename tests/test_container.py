@@ -49,7 +49,10 @@ def test_committed_schemas_ship_with_the_image():
 
 
 def test_dev_and_mock_dependencies_are_not_installed():
-    code = "import importlib.util as u; print([m for m in ('pytest', 'fastapi', 'ruff') if u.find_spec(m)])"
+    code = (
+        "import importlib.util as u; "
+        "print([m for m in ('pytest', 'fastapi', 'ruff') if u.find_spec(m)])"
+    )
     result = docker_run("-c", code, entrypoint="python")
     assert result.returncode == 0, result.stderr
     assert result.stdout.strip() == "[]"

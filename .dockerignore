@@ -1,0 +1,10 @@
+# Only pyproject.toml, uv.lock, README.md, src/, config/ and schemas/ are needed.
+**
+!pyproject.toml
+!uv.lock
+!README.md
+!src/
+!config/
+!schemas/
+**/__pycache__
+**/*.py[cod]

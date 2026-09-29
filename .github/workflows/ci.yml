@@ -10,7 +10,12 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 env:
+  TERRAFORM_VERSION: 1.16.2
+  TF_IN_AUTOMATION: "true"
   WAREHOUSE_DSN: postgresql://elt:elt@localhost:5432/warehouse
   # Demo credentials for the bundled mock APIs (not secrets).
   GLOBEX_SHOPFRONT_CLIENT_ID: globex-demo
@@ -100,3 +105,159 @@ jobs:
               echo '```'
             done
           } | tee -a "$GITHUB_STEP_SUMMARY"
+
+  terraform:
+    name: Terraform fmt, validate, test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+          terraform_wrapper: false
+      - name: Format
+        run: terraform fmt -check -recursive infra
+      # Tests use mocked AWS providers, so no credentials are needed.
+      - name: Validate and test every module and environment
+        run: |
+          for dir in infra/modules/* infra/envs/*; do
+            echo "::group::$dir"
+            terraform -chdir="$dir" init -backend=false -input=false
+            terraform -chdir="$dir" validate
+            terraform -chdir="$dir" test
+            echo "::endgroup::"
+          done
+
+  image:
+    name: Build and smoke-test image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: docker/setup-buildx-action@v3
+      - name: Build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: elt-suite:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv sync --locked
+      - name: Container smoke tests
+        run: uv run pytest -m container -v -rs
+        env:
+          ELT_IMAGE: elt-suite:test
+
+  # AWS jobs run only once the repository variables from the AWS setup guide exist
+  # (AWS_PLAN_ROLE_ARN, AWS_APPLY_ROLE_ARN, TF_STATE_BUCKET); until then they skip.
+
+  plan:
+    name: Terraform plan (dev)
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      vars.AWS_PLAN_ROLE_ARN != ''
+    needs: terraform
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    defaults:
+      run:
+        working-directory: infra/envs/dev
+    steps:
+      - uses: actions/checkout@v5
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_PLAN_ROLE_ARN }}
+          aws-region: us-east-1
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+          terraform_wrapper: false
+      - run: terraform init -input=false -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}"
+      - name: Plan
+        run: |
+          terraform plan -input=false -no-color -lock-timeout=120s \
+            -var "image_tag=${{ github.event.pull_request.head.sha }}" | tee plan.txt
+          {
+            echo "### Terraform plan (dev)"
+            echo '```'
+            grep -E '^(Plan:|No changes)' plan.txt || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  deploy:
+    name: Deploy to AWS (dev)
+    if: >-
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main' &&
+      vars.AWS_APPLY_ROLE_ARN != ''
+    needs: [checks, terraform, image]
+    runs-on: ubuntu-latest
+    concurrency:
+      group: deploy-dev
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      IMAGE_TAG: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_APPLY_ROLE_ARN }}
+          aws-region: us-east-1
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+          terraform_wrapper: false
+      - name: Terraform init
+        working-directory: infra/envs/dev
+        run: terraform init -input=false -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}"
+      # The registry must exist before the image can be pushed, and the image must exist
+      # before the task definition points at it: registry -> push -> everything else.
+      - name: Ensure the ECR repository exists
+        working-directory: infra/envs/dev
+        run: |
+          terraform apply -input=false -auto-approve -lock-timeout=120s \
+            -target=module.registry -var "image_tag=$IMAGE_TAG"
+          echo "REPOSITORY_URL=$(terraform output -raw ecr_repository_url)" >> "$GITHUB_ENV"
+      - uses: aws-actions/amazon-ecr-login@v2
+      - name: Check whether this commit's image already exists
+        id: existing
+        run: |
+          name="${REPOSITORY_URL##*/}"
+          if aws ecr describe-images --repository-name "$name" --image-ids imageTag="$IMAGE_TAG" > /dev/null 2>&1; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: docker/setup-buildx-action@v3
+        if: steps.existing.outputs.found != 'true'
+      - name: Build and push image (tags are immutable)
+        if: steps.existing.outputs.found != 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ env.REPOSITORY_URL }}:${{ env.IMAGE_TAG }}
+          cache-from: type=gha
+          provenance: false
+      - name: Terraform apply
+        working-directory: infra/envs/dev
+        run: |
+          terraform apply -input=false -auto-approve -lock-timeout=120s -var "image_tag=$IMAGE_TAG"
+          {
+            echo "### Deployed \`$IMAGE_TAG\` to dev"
+            echo "Run the task:"
+            echo '```bash'
+            network=$(terraform output -json run_task_network \
+              | jq -c '{awsvpcConfiguration: {subnets, securityGroups: .security_groups, assignPublicIp: .assign_public_ip}}')
+            echo "aws ecs run-task --cluster $(terraform output -raw cluster_name) --launch-type FARGATE \\"
+            echo "  --task-definition $(terraform output -raw task_definition_family) \\"
+            echo "  --network-configuration '$network'"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
