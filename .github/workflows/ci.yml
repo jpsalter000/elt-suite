@@ -12,6 +12,10 @@ concurrency:
 
 env:
   WAREHOUSE_DSN: postgresql://elt:elt@localhost:5432/warehouse
+  # Demo credentials for the bundled mock APIs (not secrets).
+  GLOBEX_SHOPFRONT_CLIENT_ID: globex-demo
+  GLOBEX_SHOPFRONT_CLIENT_SECRET: globex-demo-secret
+  INITECH_TICKETDESK_API_KEY: initech-demo-key
 
 jobs:
   checks:
@@ -44,7 +48,7 @@ jobs:
         run: uv run pytest -v -rs
 
   demo:
-    name: Demo pipeline (live USGS -> Postgres)
+    name: Demo pipelines (USGS + mock APIs -> Postgres)
     needs: checks
     runs-on: ubuntu-latest
     services:
@@ -69,6 +73,19 @@ jobs:
         run: uv run elt run demo_usgs_extract_and_load
       - name: Second run (resumes from saved watermark)
         run: uv run elt run demo_usgs_extract_and_load
+      - name: Start mock APIs
+        run: |
+          nohup uv run elt-mock shopfront > shopfront.log 2>&1 &
+          nohup uv run elt-mock ticketdesk > ticketdesk.log 2>&1 &
+          for port in 8001 8002; do
+            timeout 60 bash -c "until curl -sf localhost:$port/docs > /dev/null; do sleep 1; done"
+          done
+      - name: Mock API pipelines (two runs each)
+        run: |
+          for consumer in globex_shopfront_extract_and_load initech_ticketdesk_extract_and_load; do
+            uv run elt run $consumer
+            uv run elt run $consumer
+          done
       - name: Summarize runs
         run: |
           {
@@ -76,4 +93,10 @@ jobs:
             echo '```'
             psql "$WAREHOUSE_DSN" -c "SELECT job, status, records_loaded, lower_bound, max_incremental_value FROM demo_usgs._runs ORDER BY started_at"
             echo '```'
+            for schema in globex_shopfront initech_ticketdesk; do
+              echo "### $schema._runs"
+              echo '```'
+              psql "$WAREHOUSE_DSN" -c "SELECT job, status, records_loaded, lower_bound, max_incremental_value FROM $schema._runs ORDER BY started_at"
+              echo '```'
+            done
           } | tee -a "$GITHUB_STEP_SUMMARY"
