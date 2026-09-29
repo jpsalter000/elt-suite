@@ -7,6 +7,23 @@ mock_provider "aws" {
       region = "us-east-1"
     }
   }
+  # The provider validates ARN syntax even for mocked values.
+  mock_resource "aws_iam_role" {
+    defaults = {
+      arn = "arn:aws:iam::123456789012:role/elt-test"
+    }
+  }
+  mock_resource "aws_ecs_cluster" {
+    defaults = {
+      arn = "arn:aws:ecs:us-east-1:123456789012:cluster/elt-test"
+    }
+  }
+  mock_resource "aws_ecs_task_definition" {
+    defaults = {
+      arn                  = "arn:aws:ecs:us-east-1:123456789012:task-definition/elt-test:1"
+      arn_without_revision = "arn:aws:ecs:us-east-1:123456789012:task-definition/elt-test"
+    }
+  }
 }
 
 variables {

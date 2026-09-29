@@ -7,6 +7,17 @@ mock_provider "aws" {
       names = ["us-east-1a", "us-east-1b", "us-east-1c"]
     }
   }
+  # The provider validates ARN syntax even for mocked values.
+  mock_resource "aws_cloudwatch_log_group" {
+    defaults = {
+      arn = "arn:aws:logs:us-east-1:123456789012:log-group:/vpc/elt-test/flow-logs"
+    }
+  }
+  mock_resource "aws_iam_role" {
+    defaults = {
+      arn = "arn:aws:iam::123456789012:role/elt-test-vpc-flow-logs"
+    }
+  }
 }
 
 variables {
@@ -109,6 +120,15 @@ run "default_security_group_denies_everything" {
 
 run "nacls_mirror_the_security_groups" {
   command = apply
+
+  assert {
+    condition     = length(aws_network_acl.isolated.ingress) == 2 && length(aws_network_acl.isolated.egress) == 2
+    error_message = "Isolated NACL needs one inbound and one outbound rule per public subnet."
+  }
+  assert {
+    condition     = length(aws_network_acl.public.ingress) == 1 && length(aws_network_acl.public.egress) == 3
+    error_message = "Public NACL: one inbound return-traffic rule; HTTPS plus Postgres to each isolated subnet."
+  }
 
   assert {
     condition     = alltrue([for r in aws_network_acl.isolated.ingress : r.from_port == 5432 && r.to_port == 5432 && contains(aws_subnet.public[*].cidr_block, r.cidr_block)])
