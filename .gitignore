@@ -31,3 +31,12 @@ CLAUDE.local.md
 scratch/
 notes/
 *.local.json
+
+# --- Terraform ---
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+# Lock files are committed for root modules (infra/envs/*) only.
+infra/modules/**/.terraform.lock.hcl
