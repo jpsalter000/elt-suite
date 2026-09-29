@@ -101,7 +101,9 @@ def _check_auth(header: str | None, username: str, password: str) -> None:
     try:
         user, _, secret = base64.b64decode(value).decode().partition(":")
     except (binascii.Error, UnicodeDecodeError):
-        raise _unauthorized("Malformed Basic credentials; expected base64(username:password)")
+        raise _unauthorized(
+            "Malformed Basic credentials; expected base64(username:password)"
+        ) from None
     if (user, secret) != (username, password):
         raise _unauthorized("username or password is incorrect")
 
@@ -129,7 +131,8 @@ def _validate(request: Request) -> dict[str, Any]:
             errors.append(
                 {
                     "name": name,
-                    "reason": f"Cartwheel pages with offset and limit, not page (allowed: {allowed})",
+                    "reason": "Cartwheel pages with offset and limit, not page "
+                    f"(allowed: {allowed})",
                 }
             )
         elif name not in PARAMS:
