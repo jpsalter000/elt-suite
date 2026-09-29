@@ -41,6 +41,11 @@ src/consumers/
   ticketdesk/client.py                  # fetch_tickets, fetch_agents (mock API, API key)
 src/mock_apis/                          # two mock REST APIs served by `elt-mock`
   shopfront/  ticketdesk/  cli.py
+infra/
+  modules/{network,registry,warehouse,runner}/   # Terraform modules, each with `terraform test`
+  envs/dev/                             # root module: composes the modules, S3 backend
+docs/adr/                               # architecture decision records
+Dockerfile                              # multi-stage uv build -> non-root runtime image
 ```
 
 ## Consumer config
@@ -202,6 +207,54 @@ uv run elt run globex_shopfront_extract_and_load
 uv run elt run initech_ticketdesk_extract_and_load
 ```
 
+## Deploying to AWS
+
+The pipeline runs as a Fargate task. Terraform in [`infra/`](infra/) defines everything it needs, and CI deploys it on every merge to `main`.
+
+```mermaid
+flowchart LR
+    subgraph vpc[VPC 10.20.0.0/16]
+        subgraph pub[Public subnets x2]
+            task[Fargate task<br/>elt run ...<br/>SG: no inbound]
+        end
+        subgraph iso[Isolated subnets x2, no route out]
+            rds[(RDS Postgres 16<br/>SG: 5432 from task only)]
+        end
+    end
+    task -- 5432 TLS --> rds
+    task -- 443 --> igw[Internet gateway] --> apis[Source APIs, ECR, Logs, Secrets Manager, SSM]
+    sched[EventBridge Scheduler<br/>optional] -.-> task
+    ecr[ECR: elt-suite:&lt;git sha&gt;] -.image.-> task
+    sm[Secrets Manager: RDS-managed login<br/>SSM: consumer credentials] -.injected by execution role.-> task
+```
+
+| Module | What it creates |
+| --- | --- |
+| `network` | VPC, 2 public and 2 isolated subnets, internet gateway, route tables (isolated has no routes), task and database security groups, NACLs mirroring them, an emptied default security group, and flow logs of rejected traffic. **No NAT Gateway**; see [ADR 2](docs/adr/0002-public-subnets-without-a-nat-gateway.md). |
+| `registry` | ECR repository with immutable tags, scan on push, encryption, and a lifecycle rule keeping 10 images. |
+| `warehouse` | RDS Postgres 16 (`db.t4g.micro`, 20 GB gp3), private, encrypted, TLS-only. RDS generates the password and keeps it in Secrets Manager, so it never appears in Terraform state. |
+| `runner` | ECS cluster, a 14-day log group, and a hardened Fargate task definition: non-root, read-only root filesystem, writable `/tmp` only. It has a least-privilege execution role and an optional EventBridge schedule. |
+
+**Credentials.** The task gets its database login as `PGUSER`/`PGPASSWORD` from the RDS secret. `WAREHOUSE_DSN` holds no secret (`postgresql:///warehouse?sslmode=require`), and libpq fills in the rest. Consumer credentials go in SSM Parameter Store and are mapped to environment variables with `consumer_secrets`.
+
+**CI/CD** ([`ci.yml`](.github/workflows/ci.yml)):
+
+| Trigger | Jobs |
+| --- | --- |
+| Every push and PR | `checks` (ruff, pyright, pytest + Postgres), `terraform` (fmt, validate, `terraform test` on mocked AWS), `image` (Docker build + container smoke tests), `demo` |
+| PR | `plan`: `terraform plan` for dev, using the read-only OIDC role |
+| Merge to `main` | `deploy`: make sure the ECR repo exists → build and push `elt-suite:<sha>` (tags are immutable) → `terraform apply`, so the task definition runs that image. The job summary prints a ready-to-run `aws ecs run-task` command. |
+
+The AWS jobs skip until the repository variables `AWS_PLAN_ROLE_ARN`, `AWS_APPLY_ROLE_ARN` and `TF_STATE_BUCKET` exist. The AWS setup guide creates the state bucket and roles; add the variables with `gh variable set`. The first `terraform apply` creates the RDS instance, which takes about 10 minutes.
+
+Test the infrastructure locally, no AWS account needed:
+
+```bash
+for d in infra/modules/* infra/envs/*; do terraform -chdir=$d init -backend=false && terraform -chdir=$d test; done
+```
+
+Decisions are recorded in [`docs/adr/`](docs/adr/): [keeping infrastructure in this repo](docs/adr/0001-infrastructure-in-the-application-repo.md) and [public subnets without a NAT Gateway](docs/adr/0002-public-subnets-without-a-nat-gateway.md).
+
 ## Development
 
 This repo is **test-first**. Every change starts with a failing test, and the commit history shows it: each feature lands as a `test:` commit that specifies it, followed by the `feat:` commit that makes it pass. API tests cover three cases: valid queries that return data, valid queries that return nothing, and invalid queries, which must produce a helpful error.
@@ -214,7 +267,7 @@ uv run pyright
 
 The Postgres end-to-end test is marked `integration`. It runs when `WAREHOUSE_DSN` is set, for example after `docker compose up -d`.
 
-[CI](.github/workflows/ci.yml) runs on every push and pull request in two jobs:
+Beyond deployment (above), [CI](.github/workflows/ci.yml) runs two pipeline jobs on every push and pull request:
 
 - **checks:** ruff, pyright, and the full test suite against a Postgres service container, so the integration test always runs.
 - **demo:** runs the live USGS pipeline and both mock-API pipelines twice each into a fresh Postgres, using the committed schemas. This shows the second run resuming from the first run's watermark, and it catches drift between the committed schemas and the live data. The resulting `_runs` table is posted to the job summary.
