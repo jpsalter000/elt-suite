@@ -16,6 +16,10 @@ env:
   GLOBEX_SHOPFRONT_CLIENT_ID: globex-demo
   GLOBEX_SHOPFRONT_CLIENT_SECRET: globex-demo-secret
   INITECH_TICKETDESK_API_KEY: initech-demo-key
+  UMBRELLA_CARTWHEEL_USERNAME: umbrella-demo
+  UMBRELLA_CARTWHEEL_PASSWORD: umbrella-demo-password
+  HOOLI_HELPLINE_KEY_ID: hooli-demo
+  HOOLI_HELPLINE_SECRET: hooli-demo-signing-secret
 
 jobs:
   checks:
@@ -77,12 +81,15 @@ jobs:
         run: |
           nohup uv run elt-mock shopfront > shopfront.log 2>&1 &
           nohup uv run elt-mock ticketdesk > ticketdesk.log 2>&1 &
-          for port in 8001 8002; do
+          nohup uv run elt-mock cartwheel > cartwheel.log 2>&1 &
+          nohup uv run elt-mock helpline > helpline.log 2>&1 &
+          for port in 8001 8002 8003 8004; do
             timeout 60 bash -c "until curl -sf localhost:$port/docs > /dev/null; do sleep 1; done"
           done
       - name: Mock API pipelines (two runs each)
         run: |
-          for consumer in globex_shopfront_extract_and_load initech_ticketdesk_extract_and_load; do
+          for consumer in globex_shopfront initech_ticketdesk umbrella_cartwheel hooli_helpline; do
+            consumer="${consumer}_extract_and_load"
             uv run elt run $consumer
             uv run elt run $consumer
           done
@@ -93,7 +100,7 @@ jobs:
             echo '```'
             psql "$WAREHOUSE_DSN" -c "SELECT job, status, records_loaded, lower_bound, max_incremental_value FROM demo_usgs._runs ORDER BY started_at"
             echo '```'
-            for schema in globex_shopfront initech_ticketdesk; do
+            for schema in globex_shopfront initech_ticketdesk umbrella_cartwheel hooli_helpline; do
               echo "### $schema._runs"
               echo '```'
               psql "$WAREHOUSE_DSN" -c "SELECT job, status, records_loaded, lower_bound, max_incremental_value FROM $schema._runs ORDER BY started_at"

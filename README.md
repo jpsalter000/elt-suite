@@ -167,18 +167,23 @@ The Salesforce and NetSuite consumers work the same way once their credentials a
 
 ## Mock APIs
 
-Two mock REST APIs ship with the repo so the harder parts of extraction can be exercised offline and deterministically. Each has seeded data and its own authentication, pagination and error style, and each has a full consumer, config and committed schema.
+Four mock REST APIs ship with the repo so the hard parts of extraction and normalization can be exercised offline and deterministically. They form two domains, and each domain has **two vendors that deliver the same kinds of records in different shapes**. Each API has seeded data, its own authentication, pagination and error style, and a full consumer, config and committed schema.
 
-| | Shopfront (`globex_shopfront`) | Ticketdesk (`initech_ticketdesk`) |
-| --- | --- | --- |
-| Domain | E-commerce: `customers`, `orders` | Support desk: `tickets`, `agents` |
-| Auth | OAuth2 client credentials; short-lived bearer tokens; single-use rotating refresh tokens | Static key in the `X-API-Key` header |
-| Pagination | Keyset cursor in the body (`pagination.next_cursor`, `has_more`) | `page`/`per_page` with `Link` (`rel="next"`, `rel="last"`) and `X-Total-Count` headers |
-| Incremental filter | `updated_since`, ISO 8601 with timezone, **inclusive** | `modified_after`, `YYYY-MM-DD HH:MM:SS` UTC, **exclusive** |
-| Errors | `400 {"error": {"code", "message", "details": [{"param", "message"}]}}` | `422 {"message", "errors": [{"field", "message"}]}` |
-| Local port | 8001 | 8002 |
+| | Shopfront | Cartwheel | Ticketdesk | Helpline |
+| --- | --- | --- | --- | --- |
+| Domain (tenant) | Commerce (`globex`) | Commerce (`umbrella`) | Support (`initech`) | Support (`hooli`) |
+| Records | `customers`, `orders` (line items nested) | `customers`, `orders`, `order-items` | `tickets`, `agents` | `cases`, `staff` |
+| Auth | OAuth2 client credentials, rotating single-use refresh tokens | HTTP Basic | `X-API-Key` header | HMAC-SHA256 signed requests, 300s replay window |
+| Pagination | Keyset cursor in the body | `offset`/`limit`, `total` in the body; the default sort is unstable | `page`/`per_page` + `Link` / `X-Total-Count` | Changes feed: `start_time`, then `since_token` |
+| Incremental filter | `updated_since`, ISO `Z`, inclusive | `modified_since`, unix seconds, inclusive | `modified_after`, naive UTC, **exclusive** | `start_time`, ISO with offset; **late arrivals** |
+| Shape | snake_case, dollars in USD | camelCase, integer cents in USD/EUR/GBP, `Y`/`N`, `""` for null | nested requester, hours | requester email only, `;`-joined labels, minutes, local offsets |
+| Deletes | none | soft deletes, hidden by default | none | tombstones |
+| Errors | `400 {"error": {code, message, details[]}}` | RFC 7807 `problem+json` | `422 {message, errors[]}` | `400 {ok: false, error, message, problems{}}` |
+| Local port | 8001 | 8003 | 8002 | 8004 |
 
-Every invalid parameter is reported at once, with the accepted values or format. For example, `GET /v1/orders?limit=0&updated_since=yesterday` returns:
+[`docs/vendor-variants.md`](docs/vendor-variants.md) maps every vendor field and vocabulary onto common `customers` / `orders` / `order_lines` and `tickets` / `agents` models. For example, `IN_TRANSIT` → `shipped`, `P1` → `urgent`, `on_hold` → `pending`, cents → decimal, epoch → `timestamptz`. It is the specification for the dbt layer.
+
+Every invalid parameter is reported at once, with the accepted values or format. For example, `GET /v1/orders?limit=0&updated_since=yesterday` on Shopfront returns:
 
 ```json
 {"error": {"code": "invalid_parameters", "message": "2 invalid parameters: limit, updated_since",
@@ -190,16 +195,19 @@ Every invalid parameter is reported at once, with the accepted values or format.
 **What the consumers handle:**
 
 - **Shopfront:** when an access token expires partway through pagination, the client exchanges the refresh token and retries the page. If the refresh token is rejected, it re-authenticates from scratch.
-- **Ticketdesk:** `modified_after` is exclusive, timestamps have one-second resolution, and several tickets share each hourly `modified_at`. Passing the watermark as-is would silently drop records, so the client sends `lower_bound - 1s` to keep elt-suite's inclusive semantics. A test pins this with colliding timestamps.
-- **Both:** API errors surface as `SourceError` with the API's own explanation. For example: `Shopfront token request (client_credentials) failed: 401 invalid_client: client_id or client_secret is incorrect`.
+- **Ticketdesk:** `modified_after` is exclusive, timestamps have one-second resolution, and several tickets share each hourly `modified_at`. Passing the watermark as-is would silently drop records, so the client sends `lower_bound - 1s`.
+- **Cartwheel:** paging the default sort duplicated 4 orders and skipped 4 others out of 434 (at `limit=7`), so the client always pages with `sort=id`. It also requests soft-deleted rows so deletions reach the warehouse. Watermarks are unix seconds (`datetime_format: "epoch"`).
+- **Helpline:** changes commit up to 25 minutes after their `updated_at`, so a change can arrive after the previous run already saved a newer watermark. The consumer config sets `lookback_seconds: 1800`, and a test constructs exactly that case: the change is lost with no look-back and caught with it.
+- **All:** API errors surface as `SourceError` with the API's own explanation. For example: `Cartwheel GET /api/v3/orders failed: 401 Unauthorized: username or password is incorrect`.
 
 Run them locally (the demo credentials are in `.env.example`):
 
 ```bash
 uv run elt-mock shopfront        # http://localhost:8001/docs
 uv run elt-mock ticketdesk       # http://localhost:8002/docs
-uv run elt run globex_shopfront_extract_and_load
-uv run elt run initech_ticketdesk_extract_and_load
+uv run elt-mock cartwheel        # http://localhost:8003/docs
+uv run elt-mock helpline         # http://localhost:8004/docs
+uv run elt run umbrella_cartwheel_extract_and_load
 ```
 
 ## Development
