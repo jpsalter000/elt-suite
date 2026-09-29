@@ -69,7 +69,9 @@ def get_all(api, path, auth, **params):
             assert body["pagination"]["next_cursor"] is None
             return records, pages
         cursor = body["pagination"]["next_cursor"]
-        resp = api.get(path, params={"cursor": cursor, "limit": params.get("limit", 50)}, headers=auth)
+        resp = api.get(
+            path, params={"cursor": cursor, "limit": params.get("limit", 50)}, headers=auth
+        )
 
 
 def error(resp):
@@ -183,7 +185,9 @@ def test_first_page_uses_default_limit(api, auth, path):
     assert isinstance(body["pagination"]["next_cursor"], str)
 
 
-@pytest.mark.parametrize(("path", "key"), [("/v1/customers", "customers"), ("/v1/orders", "orders")])
+@pytest.mark.parametrize(
+    ("path", "key"), [("/v1/customers", "customers"), ("/v1/orders", "orders")]
+)
 def test_cursor_pagination_returns_every_record_once_in_order(api, auth, path, key):
     records, pages = get_all(api, path, auth, limit=37)
     expected = api.app.state.dataset[key]

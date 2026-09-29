@@ -40,6 +40,7 @@ packages = ["src/elt_suite", "src/consumers", "src/mock_apis"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 markers = ["integration: requires a running Postgres (set WAREHOUSE_DSN)"]
+filterwarnings = ["ignore:Using `httpx` with `starlette.testclient`"]
 
 [tool.ruff]
 line-length = 100
