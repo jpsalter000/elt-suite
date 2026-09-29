@@ -50,7 +50,7 @@ target-version = "py312"
 select = ["E", "F", "I", "B", "UP", "SIM"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["elt_suite", "consumers", "conftest"]
+known-first-party = ["elt_suite", "consumers", "mock_apis", "conftest"]
 
 [tool.pyright]
 include = ["src"]
