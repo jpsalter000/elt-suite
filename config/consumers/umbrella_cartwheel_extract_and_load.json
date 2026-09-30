@@ -1,0 +1,49 @@
+{
+  "company": "umbrella",
+  "source_system": "cartwheel",
+  "base_url": "http://localhost:8003",
+  "credentials": {
+    "username": "UMBRELLA_CARTWHEEL_USERNAME",
+    "password": "UMBRELLA_CARTWHEEL_PASSWORD"
+  },
+  "destination": "warehouse",
+  "target_schema": "umbrella_cartwheel",
+  "extra": {
+    "page_size": 250
+  },
+  "jobs": [
+    {
+      "name": "customers",
+      "primary_keys": [
+        "customerId"
+      ],
+      "incremental_loading": {
+        "incremental_key": "modified",
+        "lower_bound": "1767225600",
+        "datetime_format": "epoch"
+      }
+    },
+    {
+      "name": "orders",
+      "primary_keys": [
+        "orderId"
+      ],
+      "incremental_loading": {
+        "incremental_key": "modified",
+        "lower_bound": "1767225600",
+        "datetime_format": "epoch"
+      }
+    },
+    {
+      "name": "order_items",
+      "primary_keys": [
+        "orderItemId"
+      ],
+      "incremental_loading": {
+        "incremental_key": "modified",
+        "lower_bound": "1767225600",
+        "datetime_format": "epoch"
+      }
+    }
+  ]
+}

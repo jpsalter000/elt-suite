@@ -1,0 +1,64 @@
+{
+  "consumer": "umbrella_cartwheel_extract_and_load",
+  "job": "orders",
+  "primary_keys": [
+    "orderId"
+  ],
+  "incremental_key": "modified",
+  "generated_at": "2026-09-29T21:47:33+00:00",
+  "records_scanned": 450,
+  "fields": {
+    "orderId": {
+      "type": "integer",
+      "nullable": false
+    },
+    "customerId": {
+      "type": "integer",
+      "nullable": false
+    },
+    "orderState": {
+      "type": "string",
+      "nullable": false
+    },
+    "currencyCode": {
+      "type": "string",
+      "nullable": false
+    },
+    "subtotalCents": {
+      "type": "integer",
+      "nullable": false
+    },
+    "shippingCents": {
+      "type": "integer",
+      "nullable": false
+    },
+    "discountCents": {
+      "type": "integer",
+      "nullable": false
+    },
+    "totalCents": {
+      "type": "integer",
+      "nullable": false
+    },
+    "promoCode": {
+      "type": "string",
+      "nullable": false
+    },
+    "placed": {
+      "type": "integer",
+      "nullable": false
+    },
+    "modified": {
+      "type": "integer",
+      "nullable": false
+    },
+    "isDeleted": {
+      "type": "boolean",
+      "nullable": false
+    },
+    "deletedAt": {
+      "type": "integer",
+      "nullable": true
+    }
+  }
+}
