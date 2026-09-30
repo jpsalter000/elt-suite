@@ -13,6 +13,7 @@ def served(monkeypatch):
 @pytest.mark.parametrize(("name", "port", "title"), [
     ("shopfront", 8001, "Shopfront (mock)"),
     ("ticketdesk", 8002, "Ticketdesk (mock)"),
+    ("cartwheel", 8003, "Cartwheel (mock)"),
 ])  # fmt: skip
 def test_serves_each_api_on_its_default_port(served, name, port, title):
     cli.main([name])
