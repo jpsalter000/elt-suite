@@ -8,12 +8,13 @@ from collections.abc import Callable, Sequence
 import uvicorn
 from fastapi import FastAPI
 
-from mock_apis import cartwheel, shopfront, ticketdesk
+from mock_apis import cartwheel, helpline, shopfront, ticketdesk
 
 APIS: dict[str, tuple[Callable[[], FastAPI], int]] = {
     "shopfront": (shopfront.create_app, 8001),
     "ticketdesk": (ticketdesk.create_app, 8002),
     "cartwheel": (cartwheel.create_app, 8003),
+    "helpline": (helpline.create_app, 8004),
 }
 
 
@@ -24,7 +25,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     parser.add_argument(
         "--port",
         type=int,
-        help="default: 8001 shopfront, 8002 ticketdesk, 8003 cartwheel",
+        help="default: 8001 shopfront, 8002 ticketdesk, 8003 cartwheel, 8004 helpline",
     )
     args = parser.parse_args(argv)
 
