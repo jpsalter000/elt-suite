@@ -1,0 +1,40 @@
+{
+  "company": "hooli",
+  "source_system": "helpline",
+  "base_url": "http://localhost:8004",
+  "credentials": {
+    "key_id": "HOOLI_HELPLINE_KEY_ID",
+    "secret": "HOOLI_HELPLINE_SECRET"
+  },
+  "destination": "warehouse",
+  "target_schema": "hooli_helpline",
+  "extra": {
+    "page_size": 500
+  },
+  "jobs": [
+    {
+      "name": "cases",
+      "primary_keys": [
+        "case_number"
+      ],
+      "incremental_loading": {
+        "incremental_key": "updated_at",
+        "lower_bound": "2026-01-01T00:00:00+00:00",
+        "datetime_format": "%Y-%m-%dT%H:%M:%S%z",
+        "lookback_seconds": 1800
+      }
+    },
+    {
+      "name": "staff",
+      "primary_keys": [
+        "staff_id"
+      ],
+      "incremental_loading": {
+        "incremental_key": "updated_at",
+        "lower_bound": "2026-01-01T00:00:00+00:00",
+        "datetime_format": "%Y-%m-%dT%H:%M:%S%z",
+        "lookback_seconds": 1800
+      }
+    }
+  ]
+}
