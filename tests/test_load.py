@@ -116,6 +116,56 @@ def test_configured_lower_bound_wins_when_later_than_state(inferred):
     assert resolve_lower_bound(consumer, job, dest) == datetime(2024, 1, 1)
 
 
+def test_lookback_widens_the_saved_watermark(inferred):
+    consumer, job, _ = inferred
+    inc = job.incremental_loading.model_copy(update={"lookback_seconds": 3600})
+    job = job.model_copy(update={"incremental_loading": inc})
+    dest = MemoryDestination()
+    dest.last_watermark = lambda *_: "2024-03-01 12:00:00"
+    assert resolve_lower_bound(consumer, job, dest) == datetime(2024, 3, 1, 11)
+
+
+def test_lookback_never_goes_below_the_configured_lower_bound(inferred):
+    consumer, job, _ = inferred
+    inc = job.incremental_loading.model_copy(update={"lookback_seconds": 86400 * 365})
+    job = job.model_copy(update={"incremental_loading": inc})
+    dest = MemoryDestination()
+    dest.last_watermark = lambda *_: "2024-03-01 12:00:00"
+    assert resolve_lower_bound(consumer, job, dest) == datetime(2024, 1, 1)
+
+
+def test_epoch_watermarks_are_tracked_and_resumed(elt_home, fake_client):
+    import copy
+
+    from conftest import FAKE_CONFIG, write_consumer
+    from elt_suite.config import load_consumer
+
+    config = copy.deepcopy(FAKE_CONFIG)
+    config["jobs"][0]["incremental_loading"] = {
+        "incremental_key": "updated_at",
+        "lower_bound": "1704067200",  # 2024-01-01
+        "datetime_format": "epoch",
+    }
+    consumer = load_consumer(write_consumer(elt_home, config))
+    job = consumer.jobs[0]
+    fake_client.extend(
+        [
+            {"id": 1, "updated_at": 1706745600},  # 2024-02-01
+            {"id": 2, "updated_at": 1709294400},  # 2024-03-01 12:00
+        ]
+    )
+    run_inference(consumer, job)
+    schema = JobSchema.load(consumer.name, job.name)
+    dest = MemoryDestination()
+
+    first = extract_and_load(consumer, job, schema, dest)
+    second = extract_and_load(consumer, job, schema, dest)
+
+    assert first.max_incremental_value == "1709294400"
+    assert dest.last_run.lower_bound == "1709294400"
+    assert second.records_loaded == 1
+
+
 @pytest.mark.integration
 @pytest.mark.skipif(not os.environ.get("WAREHOUSE_DSN"), reason="WAREHOUSE_DSN not set")
 def test_postgres_end_to_end(inferred, fake_client):
