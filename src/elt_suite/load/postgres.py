@@ -12,6 +12,8 @@ from psycopg.types.json import Jsonb
 from elt_suite.load.ddl import RUNS_COLUMNS, RUNS_TABLE, Column
 from elt_suite.load.destination import RunRecord
 
+DDL_LOCK_CLASS = 0x454C54  # "ELT": namespaces elt-suite's advisory locks
+
 
 def _column_def(col: Column) -> sql.Composed:
     return sql.SQL("{} {}{}").format(
@@ -31,6 +33,11 @@ class PostgresDestination:
 
     def _ensure(self, schema: str, table: str, columns: list[Column], pks: list[str]) -> None:
         with self.conn.transaction():
+            # Parallel loaders race on IF NOT EXISTS DDL (catalog unique violations), so
+            # DDL for one schema is serialized; the lock is released at commit.
+            self.conn.execute(
+                "SELECT pg_advisory_xact_lock(%s, hashtext(%s))", [DDL_LOCK_CLASS, schema]
+            )
             self.conn.execute(
                 sql.SQL("CREATE SCHEMA IF NOT EXISTS {}").format(sql.Identifier(schema))
             )

@@ -84,7 +84,7 @@ class TokenAuth(httpx.Auth):
 def suiteql(ctx: JobContext, query: str) -> Iterator[Record]:
     """Stream every row of a SuiteQL query, one page at a time."""
     host = ctx.credentials["account_id"].lower().replace("_", "-")
-    url = ctx.consumer.base_url.format(account_id=host) + SUITEQL_PATH
+    url = ctx.consumer.effective_base_url.format(account_id=host) + SUITEQL_PATH
     auth = TokenAuth(ctx.credentials)
     limit = ctx.consumer.extra.get("page_size", 1000)
     offset = 0

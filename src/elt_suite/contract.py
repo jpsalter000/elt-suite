@@ -47,7 +47,7 @@ class JobContext:
     @property
     def base_url(self) -> str:
         """Base URL with ``{credential}`` placeholders filled in."""
-        return self.consumer.base_url.format(**self.credentials)
+        return self.consumer.effective_base_url.format(**self.credentials)
 
 
 FetchFn = Callable[[JobContext], Iterator[Record]]
