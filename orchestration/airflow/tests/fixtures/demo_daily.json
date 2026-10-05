@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "pipeline": "demo_daily",
+  "description": "Two extract tasks feeding one dbt build.",
+  "schedule": "0 6 * * *",
+  "tasks": [
+    {"id": "extract.widgets", "kind": "extract_load", "depends_on": [], "argv": ["pipeline", "run-task", "demo_daily", "extract.widgets"]},
+    {"id": "extract.gadgets", "kind": "extract_load", "depends_on": [], "argv": ["pipeline", "run-task", "demo_daily", "extract.gadgets"]},
+    {"id": "transform", "kind": "dbt", "depends_on": ["extract.widgets", "extract.gadgets"], "argv": ["pipeline", "run-task", "demo_daily", "transform"]}
+  ]
+}
