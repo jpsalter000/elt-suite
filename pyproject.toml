@@ -20,6 +20,7 @@ elt-mock = "mock_apis.cli:main"
 
 [dependency-groups]
 dev = [
+    "jsonschema>=4.23",
     "pyright>=1.1.414",
     "pytest>=8.3",
     "ruff>=0.6",
@@ -55,7 +56,7 @@ target-version = "py312"
 select = ["E", "F", "I", "B", "UP", "SIM"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["elt_suite", "consumers", "mock_apis", "conftest"]
+known-first-party = ["elt_suite", "consumers", "mock_apis", "conftest", "elt_airflow"]
 
 [tool.pyright]
 include = ["src"]
