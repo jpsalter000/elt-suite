@@ -1,0 +1,279 @@
+version: 2
+
+models:
+  - name: int_calendar
+    description: >
+      One row per day from var('calendar_start') to var('calendar_end'), which
+      defaults to the latest logged day. Unlike the workbook's DateTable, it holds
+      every day, not only days someone logged time.
+    columns:
+      - name: date_day
+        data_tests: [unique, not_null]
+
+  - name: int_time_entries__categorized
+    description: >
+      Time entries with their category, bucket hours and cost. Categories come from
+      the time_categories seed, matched to the item name without regard to case.
+      Items missing from the seed are 'unmapped' and don't count as worked time.
+      The entry's customer reference is resolved to a project when it names one,
+      and the client is that project's customer; otherwise it is the referenced
+      customer.
+    columns:
+      - name: time_entry_id
+        data_tests: [unique, not_null]
+      - name: category_code
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [project_work, client_bd, internal_productive, internal_admin, exempt, unmapped]
+
+  - name: int_employee_days
+    description: >
+      The capacity spine, replacing the workbook's "All Weeks". It has one row per
+      employee per day they were employed (hire date to release date, inclusive).
+      Standard hours apply on weekdays only. Expected hours are standard hours
+      minus that day's exempt hours, never below zero.
+    data_tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination: [employee_id, date_day]
+
+  - name: int_project_financial_lines
+    description: >
+      Project transaction lines with the workbook's margin rules made explicit:
+      - Amounts are normalised so revenue is positive on sales documents.
+      - The exclusion rules are applied.
+      - Each line is classed through the account_classes seed.
+      - Project price follows project status: invoices and credit memos for
+        finalized or closed projects, otherwise sales orders.
+    columns:
+      - name: exclusion_reason
+        description: Why a line contributes nothing, or null when it counts.
+
+unit_tests:
+  # --- calendar ------------------------------------------------------------------------
+  - name: calendar_weeks_start_on_sunday
+    model: int_calendar
+    overrides:
+      vars:
+        calendar_start: "2026-03-06"
+        calendar_end: "2026-03-09"
+    given:
+      - input: ref('stg_netsuite__time_entries')
+        rows: []
+    expect:
+      rows:
+        - {date_day: "2026-03-06", week_start: "2026-03-01", is_weekday: true}
+        - {date_day: "2026-03-07", week_start: "2026-03-01", is_weekday: false}
+        - {date_day: "2026-03-08", week_start: "2026-03-08", is_weekday: false}
+        - {date_day: "2026-03-09", week_start: "2026-03-08", is_weekday: true}
+
+  - name: calendar_ends_on_the_latest_logged_day_by_default
+    model: int_calendar
+    overrides:
+      vars:
+        calendar_start: "2026-08-30"
+        calendar_end: null
+    given:
+      - input: ref('stg_netsuite__time_entries')
+        rows:
+          - {time_entry_id: 1, entry_date: "2026-08-28"}
+          - {time_entry_id: 2, entry_date: "2026-08-31"}
+    expect:
+      rows:
+        - {date_day: "2026-08-30"}
+        - {date_day: "2026-08-31"}
+
+  # --- time categorization -------------------------------------------------------------
+  - name: time_entries_are_categorized_bucketed_and_costed
+    model: int_time_entries__categorized
+    given:
+      - input: ref('stg_netsuite__time_entries')
+        rows:
+          - {time_entry_id: 1, employee_id: 10, entry_date: "2026-03-02", hours: 3, customer_ref_id: 500, item_id: 1}
+          - {time_entry_id: 2, employee_id: 10, entry_date: "2026-03-02", hours: 2, customer_ref_id: 900, item_id: 2}
+          - {time_entry_id: 3, employee_id: 10, entry_date: "2026-03-02", hours: 1.5, customer_ref_id: null, item_id: 3}
+          - {time_entry_id: 4, employee_id: 10, entry_date: "2026-03-03", hours: 8, customer_ref_id: null, item_id: 4}
+          - {time_entry_id: 5, employee_id: 10, entry_date: "2026-03-04", hours: 0.5, customer_ref_id: null, item_id: 5}
+          - {time_entry_id: 6, employee_id: 10, entry_date: "2026-03-04", hours: 1.25, customer_ref_id: null, item_id: 6}
+      - input: ref('stg_netsuite__items')
+        rows:
+          - {item_id: 1, item_name: Project Time}
+          - {item_id: 2, item_name: Business Development}
+          - {item_id: 3, item_name: TRAINING}
+          - {item_id: 4, item_name: Holiday}
+          - {item_id: 5, item_name: Misc Time}
+          - {item_id: 6, item_name: Admin}
+      - input: ref('time_categories')
+        rows:
+          - {item_name: Project Time, category_code: project_work, category_name: Project Work, counts_as_worked: true, is_client_facing: true}
+          - {item_name: Business Development, category_code: client_bd, category_name: Client - BD, counts_as_worked: true, is_client_facing: true}
+          - {item_name: Training, category_code: internal_productive, category_name: Internal - Productive, counts_as_worked: true, is_client_facing: false}
+          - {item_name: Admin, category_code: internal_admin, category_name: Internal - Admin, counts_as_worked: true, is_client_facing: false}
+          - {item_name: Holiday, category_code: exempt, category_name: Exempt, counts_as_worked: false, is_client_facing: false}
+      - input: ref('stg_netsuite__projects')
+        rows:
+          - {project_id: 500, customer_id: 901}
+      - input: ref('stg_netsuite__employees')
+        rows:
+          - {employee_id: 10, cost_per_hour: 50, burdened_cost_per_hour: 65}
+    expect:
+      rows:
+        - {time_entry_id: 1, category_code: project_work, project_id: 500, client_id: 901, worked_hours: 3, client_facing_hours: 3, project_work_hours: 3, client_bd_hours: 0, internal_productive_hours: 0, internal_admin_hours: 0, exempt_hours: 0, unmapped_hours: 0, time_cost: 150, burdened_time_cost: 195}
+        - {time_entry_id: 2, category_code: client_bd, project_id: null, client_id: 900, worked_hours: 2, client_facing_hours: 2, project_work_hours: 0, client_bd_hours: 2, internal_productive_hours: 0, internal_admin_hours: 0, exempt_hours: 0, unmapped_hours: 0, time_cost: 100, burdened_time_cost: 130}
+        - {time_entry_id: 3, category_code: internal_productive, project_id: null, client_id: null, worked_hours: 1.5, client_facing_hours: 0, project_work_hours: 0, client_bd_hours: 0, internal_productive_hours: 1.5, internal_admin_hours: 0, exempt_hours: 0, unmapped_hours: 0, time_cost: 75, burdened_time_cost: 97.5}
+        - {time_entry_id: 4, category_code: exempt, project_id: null, client_id: null, worked_hours: 0, client_facing_hours: 0, project_work_hours: 0, client_bd_hours: 0, internal_productive_hours: 0, internal_admin_hours: 0, exempt_hours: 8, unmapped_hours: 0, time_cost: 400, burdened_time_cost: 520}
+        - {time_entry_id: 5, category_code: unmapped, project_id: null, client_id: null, worked_hours: 0, client_facing_hours: 0, project_work_hours: 0, client_bd_hours: 0, internal_productive_hours: 0, internal_admin_hours: 0, exempt_hours: 0, unmapped_hours: 0.5, time_cost: 25, burdened_time_cost: 32.5}
+        - {time_entry_id: 6, category_code: internal_admin, project_id: null, client_id: null, worked_hours: 1.25, client_facing_hours: 0, project_work_hours: 0, client_bd_hours: 0, internal_productive_hours: 0, internal_admin_hours: 1.25, exempt_hours: 0, unmapped_hours: 0, time_cost: 62.5, burdened_time_cost: 81.25}
+
+  # --- capacity ------------------------------------------------------------------------
+  - name: expected_hours_follow_employment_weekdays_and_exempt_time
+    model: int_employee_days
+    given:
+      - input: ref('stg_netsuite__employees')
+        rows:
+          # hired mid-week
+          - {employee_id: 1, hire_date: "2026-03-03", release_date: null, standard_hours_per_day: 8}
+          # part-timer released mid-week (the release date is their last day)
+          - {employee_id: 2, hire_date: "2020-01-01", release_date: "2026-03-04", standard_hours_per_day: 6}
+      - input: ref('int_calendar')
+        rows:
+          - {date_day: "2026-03-02", week_start: "2026-03-01", is_weekday: true}
+          - {date_day: "2026-03-03", week_start: "2026-03-01", is_weekday: true}
+          - {date_day: "2026-03-04", week_start: "2026-03-01", is_weekday: true}
+          - {date_day: "2026-03-05", week_start: "2026-03-01", is_weekday: true}
+          - {date_day: "2026-03-06", week_start: "2026-03-01", is_weekday: true}
+          - {date_day: "2026-03-07", week_start: "2026-03-01", is_weekday: false}
+          - {date_day: "2026-03-08", week_start: "2026-03-08", is_weekday: false}
+      - input: ref('int_time_entries__categorized')
+        rows:
+          - {time_entry_id: 1, employee_id: 1, entry_date: "2026-03-04", exempt_hours: 4}
+          - {time_entry_id: 2, employee_id: 1, entry_date: "2026-03-04", exempt_hours: 0}
+          # a PTO day longer than the standard day: expected time stops at zero
+          - {time_entry_id: 3, employee_id: 1, entry_date: "2026-03-05", exempt_hours: 10}
+          - {time_entry_id: 4, employee_id: 1, entry_date: "2026-03-07", exempt_hours: 8}
+          - {time_entry_id: 5, employee_id: 2, entry_date: "2026-03-03", exempt_hours: 6}
+    expect:
+      rows:
+        - {employee_id: 1, date_day: "2026-03-03", standard_hours: 8, exempt_hours: 0, expected_hours: 8}
+        - {employee_id: 1, date_day: "2026-03-04", standard_hours: 8, exempt_hours: 4, expected_hours: 4}
+        - {employee_id: 1, date_day: "2026-03-05", standard_hours: 8, exempt_hours: 10, expected_hours: 0}
+        - {employee_id: 1, date_day: "2026-03-06", standard_hours: 8, exempt_hours: 0, expected_hours: 8}
+        - {employee_id: 1, date_day: "2026-03-07", standard_hours: 0, exempt_hours: 8, expected_hours: 0}
+        - {employee_id: 1, date_day: "2026-03-08", standard_hours: 0, exempt_hours: 0, expected_hours: 0}
+        - {employee_id: 2, date_day: "2026-03-02", standard_hours: 6, exempt_hours: 0, expected_hours: 6}
+        - {employee_id: 2, date_day: "2026-03-03", standard_hours: 6, exempt_hours: 6, expected_hours: 0}
+        - {employee_id: 2, date_day: "2026-03-04", standard_hours: 6, exempt_hours: 0, expected_hours: 6}
+
+  # --- project financials --------------------------------------------------------------
+  - name: project_financial_lines_apply_the_margin_rules
+    model: int_project_financial_lines
+    given:
+      - input: ref('stg_netsuite__projects')
+        rows:
+          - {project_id: 500, is_complete: true}
+          - {project_id: 600, is_complete: false}
+      - input: ref('stg_netsuite__transactions')
+        rows:
+          - {transaction_id: 1, transaction_type: SalesOrd, transaction_status: Pending Billing}
+          - {transaction_id: 2, transaction_type: CustInvc, transaction_status: Open}
+          - {transaction_id: 3, transaction_type: CustCred, transaction_status: Fully Applied}
+          - {transaction_id: 4, transaction_type: SalesOrd, transaction_status: Pending Billing}
+          - {transaction_id: 5, transaction_type: CustInvc, transaction_status: Open}
+          - {transaction_id: 6, transaction_type: VendBill, transaction_status: Open}
+          - {transaction_id: 7, transaction_type: PurchOrd, transaction_status: Pending Billing}
+          - {transaction_id: 8, transaction_type: PurchOrd, transaction_status: Fully Billed}
+          - {transaction_id: 9, transaction_type: ExpRept, transaction_status: Rejected by Supervisor}
+          - {transaction_id: 10, transaction_type: ExpRept, transaction_status: Approved by Accounting}
+          - {transaction_id: 11, transaction_type: VendAuth, transaction_status: Pending Return}
+          - {transaction_id: 12, transaction_type: Journal, transaction_status: Approved for Posting}
+          - {transaction_id: 13, transaction_type: Journal, transaction_status: Approved for Posting}
+          - {transaction_id: 14, transaction_type: CustInvc, transaction_status: Open}
+          - {transaction_id: 15, transaction_type: PurchOrd, transaction_status: Pending Supervisor Approval}
+      - input: ref('stg_netsuite__transaction_lines')
+        rows:
+          - {transaction_id: 1, line_id: 0, is_mainline: true, entity_id: 77}
+          - {transaction_id: 1, line_id: 1, is_mainline: false, entity_id: 500}
+          - {transaction_id: 2, line_id: 1, is_mainline: false, entity_id: 500}
+          - {transaction_id: 2, line_id: 2, is_mainline: false, entity_id: 500}
+          - {transaction_id: 3, line_id: 1, is_mainline: false, entity_id: 500}
+          - {transaction_id: 4, line_id: 1, is_mainline: false, entity_id: 600}
+          - {transaction_id: 4, line_id: 2, is_mainline: false, entity_id: 600}
+          - {transaction_id: 5, line_id: 1, is_mainline: false, entity_id: 600}
+          - {transaction_id: 6, line_id: 1, is_mainline: false, entity_id: 500}
+          - {transaction_id: 6, line_id: 2, is_mainline: false, entity_id: 500}
+          - {transaction_id: 7, line_id: 1, is_mainline: false, entity_id: 500}
+          - {transaction_id: 8, line_id: 1, is_mainline: false, entity_id: 500}
+          - {transaction_id: 9, line_id: 1, is_mainline: false, entity_id: 500}
+          - {transaction_id: 10, line_id: 1, is_mainline: false, entity_id: 500}
+          - {transaction_id: 11, line_id: 1, is_mainline: false, entity_id: 500}
+          - {transaction_id: 12, line_id: 1, is_mainline: false, entity_id: 500}
+          - {transaction_id: 13, line_id: 1, is_mainline: false, entity_id: 500}
+          - {transaction_id: 14, line_id: 1, is_mainline: false, entity_id: 500}
+          - {transaction_id: 15, line_id: 1, is_mainline: false, entity_id: 500}
+      - input: ref('stg_netsuite__transaction_accounting_lines')
+        rows:
+          - {transaction_id: 1, line_id: 0, account_id: 102, amount: 10000}
+          - {transaction_id: 1, line_id: 1, account_id: 106, amount: -10000}
+          - {transaction_id: 2, line_id: 1, account_id: 106, amount: -6000}
+          - {transaction_id: 2, line_id: 2, account_id: 107, amount: -500}
+          - {transaction_id: 3, line_id: 1, account_id: 106, amount: 1000}
+          - {transaction_id: 4, line_id: 1, account_id: 106, amount: -8000}
+          - {transaction_id: 4, line_id: 2, account_id: 108, amount: -700}
+          - {transaction_id: 5, line_id: 1, account_id: 106, amount: -3000}
+          - {transaction_id: 6, line_id: 1, account_id: 110, amount: 2000}
+          - {transaction_id: 6, line_id: 2, account_id: 111, amount: 300}
+          - {transaction_id: 7, line_id: 1, account_id: 110, amount: 400}
+          - {transaction_id: 8, line_id: 1, account_id: 110, amount: 999}
+          - {transaction_id: 9, line_id: 1, account_id: 112, amount: 250}
+          - {transaction_id: 10, line_id: 1, account_id: 112, amount: 200}
+          - {transaction_id: 11, line_id: 1, account_id: 110, amount: -100}
+          - {transaction_id: 12, line_id: 1, account_id: 105, amount: 5000}
+          - {transaction_id: 13, line_id: 1, account_id: 104, amount: 800}
+          - {transaction_id: 14, line_id: 1, account_id: 104, amount: -300}
+          - {transaction_id: 15, line_id: 1, account_id: 109, amount: 600}
+      - input: ref('stg_netsuite__accounts')
+        rows:
+          - {account_id: 102, account_number: "11000", account_type: AcctRec}
+          - {account_id: 104, account_number: null, account_type: DeferRevenue}
+          - {account_id: 105, account_number: "32000", account_type: Equity}
+          - {account_id: 106, account_number: "40000", account_type: Income}
+          - {account_id: 107, account_number: "40110", account_type: Income}
+          - {account_id: 108, account_number: "40120", account_type: Income}
+          - {account_id: 109, account_number: "50100", account_type: COGS}
+          - {account_id: 110, account_number: "50200", account_type: COGS}
+          - {account_id: 111, account_number: "50300", account_type: COGS}
+          - {account_id: 112, account_number: "50400", account_type: COGS}
+      - input: ref('account_classes')
+        rows:
+          - {account_number: "32000", account_class: excluded}
+          - {account_number: "40000", account_class: revenue}
+          - {account_number: "40110", account_class: pass_through_travel}
+          - {account_number: "40120", account_class: pass_through_incentive}
+          - {account_number: "50100", account_class: field_cost}
+          - {account_number: "50200", account_class: field_cost}
+          - {account_number: "50300", account_class: incentive_cost}
+          - {account_number: "50400", account_class: travel_cost}
+    expect:
+      rows:
+        # complete project: the sales order is superseded by invoices and credit memos
+        - {transaction_id: 1, line_id: 1, project_id: 500, amount: 10000, exclusion_reason: null, price_amount: 0, pass_through_amount: 0}
+        - {transaction_id: 2, line_id: 1, project_id: 500, amount: 6000, exclusion_reason: null, price_amount: 6000, pass_through_amount: 0}
+        - {transaction_id: 2, line_id: 2, project_id: 500, amount: 500, exclusion_reason: null, price_amount: 500, pass_through_amount: 500}
+        - {transaction_id: 3, line_id: 1, project_id: 500, amount: -1000, exclusion_reason: null, price_amount: -1000, pass_through_amount: 0}
+        # in-progress project: priced from its sales order
+        - {transaction_id: 4, line_id: 1, project_id: 600, amount: 8000, exclusion_reason: null, price_amount: 8000, pass_through_amount: 0}
+        - {transaction_id: 4, line_id: 2, project_id: 600, amount: 700, exclusion_reason: null, price_amount: 700, pass_through_amount: 700}
+        - {transaction_id: 5, line_id: 1, project_id: 600, amount: 3000, exclusion_reason: null, price_amount: 0, pass_through_amount: 0}
+        # costs
+        - {transaction_id: 6, line_id: 1, field_cost: 2000, incentive_cost: 0, travel_cost: 0, exclusion_reason: null}
+        - {transaction_id: 6, line_id: 2, field_cost: 0, incentive_cost: 300, travel_cost: 0, exclusion_reason: null}
+        - {transaction_id: 7, line_id: 1, field_cost: 400, exclusion_reason: null}
+        - {transaction_id: 8, line_id: 1, field_cost: 0, exclusion_reason: purchase order no longer pending}
+        - {transaction_id: 9, line_id: 1, travel_cost: 0, exclusion_reason: rejected by supervisor}
+        - {transaction_id: 10, line_id: 1, travel_cost: 200, exclusion_reason: null}
+        - {transaction_id: 11, line_id: 1, field_cost: 0, exclusion_reason: vendor return authorization}
+        - {transaction_id: 12, line_id: 1, amount: 5000, exclusion_reason: excluded account}
+        - {transaction_id: 13, line_id: 1, price_amount: 0, exclusion_reason: deferred revenue outside a sales document}
+        - {transaction_id: 14, line_id: 1, amount: 300, price_amount: 300, exclusion_reason: null}
+        - {transaction_id: 15, line_id: 1, field_cost: 600, exclusion_reason: null}
