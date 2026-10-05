@@ -1,0 +1,56 @@
+# The transformation layer for elt-suite: raw extracts -> staging -> intermediate
+# -> marts -> reporting (the schema Power BI reads). Everything is a view, so the
+# reporting datasets are always as fresh as the last extract; seeds are tables.
+name: elt_suite
+version: "1.0.0"
+config-version: 2
+profile: elt_suite
+
+model-paths: [models]
+seed-paths: [seeds]
+test-paths: [tests]
+macro-paths: [macros]
+clean-targets: [target, logs]
+
+vars:
+  netsuite_schema: vandelay_netsuite
+  calendar_start: "2026-01-01"
+  calendar_end: null # defaults to the latest logged day
+  internal_client_names: ["Vandelay Industries (Internal)"]
+  top_clients: 15
+
+on-run-start:
+  - "{{ create_reporting_roles() }}"
+on-run-end:
+  - "{{ grant_reporting_usage() }}"
+
+models:
+  elt_suite:
+    +materialized: view
+    staging:
+      +schema: staging
+    intermediate:
+      +schema: intermediate
+    marts:
+      +schema: marts
+    reporting:
+      +schema: reporting
+      +contract:
+        enforced: true
+      +grants:
+        select: [reporting_reader]
+
+seeds:
+  elt_suite:
+    +schema: reference
+    time_categories:
+      +column_types:
+        counts_as_worked: boolean
+        is_client_facing: boolean
+    account_classes:
+      +column_types:
+        account_number: text
+
+data_tests:
+  elt_suite:
+    +store_failures: false

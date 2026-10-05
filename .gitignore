@@ -40,3 +40,9 @@ notes/
 crash.log
 # Lock files are committed for root modules (infra/envs/*) only.
 infra/modules/**/.terraform.lock.hcl
+
+# --- dbt (artifacts land in the system temp dir when run through elt) ---
+transform/target/
+transform/logs/
+transform/.user.yml
+logs/

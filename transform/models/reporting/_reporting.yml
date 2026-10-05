@@ -233,7 +233,7 @@ unit_tests:
     expect:
       rows:
         - {employee_id: 1, week_start: "2026-03-01", group_name: Account Team, standard_hours: 40, expected_hours: 28, worked_hours: 30, project_work_hours: 20, client_bd_hours: 4, internal_productive_hours: 3, internal_admin_hours: 3, exempt_hours: 14, net_utilization_pct: 1.0714, project_work_pct: 0.7143, client_bd_pct: 0.1429, internal_pct: 0.2143, exempt_pct: 0.3500}
-        - {employee_id: 2, week_start: "2026-03-08", expected_hours: 0, worked_hours: 3, net_utilization_pct: null, project_work_pct: null, exempt_pct: null}
+        - {employee_id: 2, week_start: "2026-03-08", group_name: Operations, standard_hours: 0, expected_hours: 0, worked_hours: 3, project_work_hours: 3, client_bd_hours: 0, internal_productive_hours: 0, internal_admin_hours: 0, exempt_hours: 0, net_utilization_pct: null, project_work_pct: null, client_bd_pct: null, internal_pct: null, exempt_pct: null}
 
   - name: project_margin_nets_out_pass_through_revenue
     model: rpt_project_margin
@@ -255,7 +255,7 @@ unit_tests:
     expect:
       rows:
         - {project_id: 500, total_hours: 20, time_cost: 1000, burdened_time_cost: 1300, price: 6500, pass_through_revenue: 500, net_revenue: 6000, field_cost: 2400, incentive_cost: 300, travel_cost: 200, project_profit: 2600, project_profit_pct: 0.4333, contribution_margin: 2300, contribution_margin_pct: 0.3833}
-        - {project_id: 600, total_hours: 0, time_cost: 0, price: 0, net_revenue: 0, project_profit: 0, project_profit_pct: null, contribution_margin_pct: null}
+        - {project_id: 600, total_hours: 0, time_cost: 0, burdened_time_cost: 0, price: 0, pass_through_revenue: 0, net_revenue: 0, field_cost: 0, incentive_cost: 0, travel_cost: 0, project_profit: 0, project_profit_pct: null, contribution_margin: 0, contribution_margin_pct: null}
 
   - name: top_clients_rank_external_clients_by_client_facing_hours
     model: rpt_top_clients

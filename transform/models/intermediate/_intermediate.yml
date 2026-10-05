@@ -257,23 +257,25 @@ unit_tests:
     expect:
       rows:
         # complete project: the sales order is superseded by invoices and credit memos
-        - {transaction_id: 1, line_id: 1, project_id: 500, amount: 10000, exclusion_reason: null, price_amount: 0, pass_through_amount: 0}
-        - {transaction_id: 2, line_id: 1, project_id: 500, amount: 6000, exclusion_reason: null, price_amount: 6000, pass_through_amount: 0}
-        - {transaction_id: 2, line_id: 2, project_id: 500, amount: 500, exclusion_reason: null, price_amount: 500, pass_through_amount: 500}
-        - {transaction_id: 3, line_id: 1, project_id: 500, amount: -1000, exclusion_reason: null, price_amount: -1000, pass_through_amount: 0}
+        - {transaction_id: 1, line_id: 1, project_id: 500, amount: 10000, exclusion_reason: null, price_amount: 0, pass_through_amount: 0, field_cost: 0, incentive_cost: 0, travel_cost: 0}
+        - {transaction_id: 2, line_id: 1, project_id: 500, amount: 6000, exclusion_reason: null, price_amount: 6000, pass_through_amount: 0, field_cost: 0, incentive_cost: 0, travel_cost: 0}
+        - {transaction_id: 2, line_id: 2, project_id: 500, amount: 500, exclusion_reason: null, price_amount: 500, pass_through_amount: 500, field_cost: 0, incentive_cost: 0, travel_cost: 0}
+        - {transaction_id: 3, line_id: 1, project_id: 500, amount: -1000, exclusion_reason: null, price_amount: -1000, pass_through_amount: 0, field_cost: 0, incentive_cost: 0, travel_cost: 0}
         # in-progress project: priced from its sales order
-        - {transaction_id: 4, line_id: 1, project_id: 600, amount: 8000, exclusion_reason: null, price_amount: 8000, pass_through_amount: 0}
-        - {transaction_id: 4, line_id: 2, project_id: 600, amount: 700, exclusion_reason: null, price_amount: 700, pass_through_amount: 700}
-        - {transaction_id: 5, line_id: 1, project_id: 600, amount: 3000, exclusion_reason: null, price_amount: 0, pass_through_amount: 0}
-        # costs
-        - {transaction_id: 6, line_id: 1, field_cost: 2000, incentive_cost: 0, travel_cost: 0, exclusion_reason: null}
-        - {transaction_id: 6, line_id: 2, field_cost: 0, incentive_cost: 300, travel_cost: 0, exclusion_reason: null}
-        - {transaction_id: 7, line_id: 1, field_cost: 400, exclusion_reason: null}
-        - {transaction_id: 8, line_id: 1, field_cost: 0, exclusion_reason: purchase order no longer pending}
-        - {transaction_id: 9, line_id: 1, travel_cost: 0, exclusion_reason: rejected by supervisor}
-        - {transaction_id: 10, line_id: 1, travel_cost: 200, exclusion_reason: null}
-        - {transaction_id: 11, line_id: 1, field_cost: 0, exclusion_reason: vendor return authorization}
-        - {transaction_id: 12, line_id: 1, amount: 5000, exclusion_reason: excluded account}
-        - {transaction_id: 13, line_id: 1, price_amount: 0, exclusion_reason: deferred revenue outside a sales document}
-        - {transaction_id: 14, line_id: 1, amount: 300, price_amount: 300, exclusion_reason: null}
-        - {transaction_id: 15, line_id: 1, field_cost: 600, exclusion_reason: null}
+        - {transaction_id: 4, line_id: 1, project_id: 600, amount: 8000, exclusion_reason: null, price_amount: 8000, pass_through_amount: 0, field_cost: 0, incentive_cost: 0, travel_cost: 0}
+        - {transaction_id: 4, line_id: 2, project_id: 600, amount: 700, exclusion_reason: null, price_amount: 700, pass_through_amount: 700, field_cost: 0, incentive_cost: 0, travel_cost: 0}
+        - {transaction_id: 5, line_id: 1, project_id: 600, amount: 3000, exclusion_reason: null, price_amount: 0, pass_through_amount: 0, field_cost: 0, incentive_cost: 0, travel_cost: 0}
+        # costs, and the exclusion rules
+        - {transaction_id: 6, line_id: 1, project_id: 500, amount: 2000, exclusion_reason: null, price_amount: 0, pass_through_amount: 0, field_cost: 2000, incentive_cost: 0, travel_cost: 0}
+        - {transaction_id: 6, line_id: 2, project_id: 500, amount: 300, exclusion_reason: null, price_amount: 0, pass_through_amount: 0, field_cost: 0, incentive_cost: 300, travel_cost: 0}
+        - {transaction_id: 7, line_id: 1, project_id: 500, amount: 400, exclusion_reason: null, price_amount: 0, pass_through_amount: 0, field_cost: 400, incentive_cost: 0, travel_cost: 0}
+        - {transaction_id: 8, line_id: 1, project_id: 500, amount: 999, exclusion_reason: purchase order no longer pending, price_amount: 0, pass_through_amount: 0, field_cost: 0, incentive_cost: 0, travel_cost: 0}
+        - {transaction_id: 9, line_id: 1, project_id: 500, amount: 250, exclusion_reason: rejected by supervisor, price_amount: 0, pass_through_amount: 0, field_cost: 0, incentive_cost: 0, travel_cost: 0}
+        - {transaction_id: 10, line_id: 1, project_id: 500, amount: 200, exclusion_reason: null, price_amount: 0, pass_through_amount: 0, field_cost: 0, incentive_cost: 0, travel_cost: 200}
+        - {transaction_id: 11, line_id: 1, project_id: 500, amount: -100, exclusion_reason: vendor return authorization, price_amount: 0, pass_through_amount: 0, field_cost: 0, incentive_cost: 0, travel_cost: 0}
+        - {transaction_id: 12, line_id: 1, project_id: 500, amount: 5000, exclusion_reason: excluded account, price_amount: 0, pass_through_amount: 0, field_cost: 0, incentive_cost: 0, travel_cost: 0}
+        - {transaction_id: 13, line_id: 1, project_id: 500, amount: -800, exclusion_reason: deferred revenue outside a sales document, price_amount: 0, pass_through_amount: 0, field_cost: 0, incentive_cost: 0, travel_cost: 0}
+        # deferred revenue on an invoice is revenue
+        - {transaction_id: 14, line_id: 1, project_id: 500, amount: 300, exclusion_reason: null, price_amount: 300, pass_through_amount: 0, field_cost: 0, incentive_cost: 0, travel_cost: 0}
+        # a purchase order awaiting approval is a committed cost
+        - {transaction_id: 15, line_id: 1, project_id: 500, amount: 600, exclusion_reason: null, price_amount: 0, pass_through_amount: 0, field_cost: 600, incentive_cost: 0, travel_cost: 0}

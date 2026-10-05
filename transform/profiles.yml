@@ -1,0 +1,15 @@
+# Connection settings come from DBT_PG_* variables, which elt-suite derives from
+# WAREHOUSE_DSN (see elt_suite/pipeline/dbt.py). The defaults match docker compose.
+elt_suite:
+  target: warehouse
+  outputs:
+    warehouse:
+      type: postgres
+      host: "{{ env_var('DBT_PG_HOST', 'localhost') }}"
+      port: "{{ env_var('DBT_PG_PORT', '5432') | as_number }}"
+      user: "{{ env_var('DBT_PG_USER', 'elt') }}"
+      password: "{{ env_var('DBT_PG_PASSWORD', 'elt') }}"
+      dbname: "{{ env_var('DBT_PG_DBNAME', 'warehouse') }}"
+      sslmode: "{{ env_var('DBT_PG_SSLMODE', 'prefer') }}"
+      schema: analytics
+      threads: 4

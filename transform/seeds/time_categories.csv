@@ -1,0 +1,20 @@
+item_name,category_code,category_name,counts_as_worked,is_client_facing
+Project Time,project_work,Project Work,true,true
+Business Development,client_bd,Client - BD,true,true
+RFP Response/Proposal Development,client_bd,Client - BD,true,true
+Marketing/Design,client_bd,Client - BD,true,true
+Client and/or Team Strategy/Planning/Meeting,internal_productive,Internal - Productive,true,false
+Training,internal_productive,Internal - Productive,true,false
+Staffing/Resource Management,internal_productive,Internal - Productive,true,false
+Continuing Education/Professional Development,internal_productive,Internal - Productive,true,false
+Innovation/Methods Development,internal_productive,Internal - Productive,true,false
+Admin,internal_admin,Internal - Admin,true,false
+Meeting,internal_admin,Internal - Admin,true,false
+Travel (Business Development),internal_admin,Internal - Admin,true,false
+Travel (Corporate),internal_admin,Internal - Admin,true,false
+Holiday,exempt,Exempt,false,false
+PTO/Personal Leave/Birthday,exempt,Exempt,false,false
+Volunteer,exempt,Exempt,false,false
+Jury Duty,exempt,Exempt,false,false
+Bereavement,exempt,Exempt,false,false
+FMLA,exempt,Exempt,false,false
