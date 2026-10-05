@@ -35,6 +35,7 @@ def test_file_name_must_match_consumer_name(elt_home):
             "does not match datetime_format",
         ),
         (lambda c: c.update(unexpected=True), "unexpected"),
+        (lambda c: c.update(base_url_env="lower-case"), "base_url_env"),
     ],
 )
 def test_invalid_configs(elt_home, mutate, message):
