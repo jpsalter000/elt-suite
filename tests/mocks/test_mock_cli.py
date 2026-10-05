@@ -15,6 +15,7 @@ def served(monkeypatch):
     ("ticketdesk", 8002, "Ticketdesk (mock)"),
     ("cartwheel", 8003, "Cartwheel (mock)"),
     ("helpline", 8004, "Helpline (mock)"),
+    ("netsuite", 8005, "NetSuite (mock)"),
 ])  # fmt: skip
 def test_serves_each_api_on_its_default_port(served, name, port, title):
     cli.main([name])
