@@ -1,0 +1,32 @@
+{
+  "consumer": "vandelay_netsuite_extract_and_load",
+  "job": "items",
+  "primary_keys": [
+    "id"
+  ],
+  "incremental_key": null,
+  "generated_at": "2026-10-05T22:34:22+00:00",
+  "records_scanned": 22,
+  "fields": {
+    "id": {
+      "type": "string",
+      "nullable": false
+    },
+    "itemid": {
+      "type": "string",
+      "nullable": false
+    },
+    "displayname": {
+      "type": "string",
+      "nullable": true
+    },
+    "itemtype": {
+      "type": "string",
+      "nullable": false
+    },
+    "isinactive": {
+      "type": "string",
+      "nullable": false
+    }
+  }
+}

@@ -1,0 +1,59 @@
+{
+  "consumer": "vandelay_netsuite_extract_and_load",
+  "job": "projects",
+  "primary_keys": [
+    "id"
+  ],
+  "incremental_key": "lastmodifieddate",
+  "generated_at": "2026-10-05T22:34:20+00:00",
+  "records_scanned": 58,
+  "fields": {
+    "id": {
+      "type": "string",
+      "nullable": false
+    },
+    "entityid": {
+      "type": "string",
+      "nullable": false
+    },
+    "companyname": {
+      "type": "string",
+      "nullable": false
+    },
+    "parent": {
+      "type": "string",
+      "nullable": false
+    },
+    "custentity_project_status": {
+      "type": "string",
+      "nullable": false
+    },
+    "startdate": {
+      "type": "string",
+      "nullable": false,
+      "format": "date"
+    },
+    "projectedenddate": {
+      "type": "string",
+      "nullable": true,
+      "format": "date"
+    },
+    "department": {
+      "type": "string",
+      "nullable": false
+    },
+    "projectmanager": {
+      "type": "string",
+      "nullable": false
+    },
+    "isinactive": {
+      "type": "string",
+      "nullable": false
+    },
+    "lastmodifieddate": {
+      "type": "string",
+      "nullable": false,
+      "format": "date-time"
+    }
+  }
+}

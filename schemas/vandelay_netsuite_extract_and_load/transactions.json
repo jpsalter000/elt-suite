@@ -1,0 +1,54 @@
+{
+  "consumer": "vandelay_netsuite_extract_and_load",
+  "job": "transactions",
+  "primary_keys": [
+    "id"
+  ],
+  "incremental_key": "lastmodifieddate",
+  "generated_at": "2026-10-05T22:34:36+00:00",
+  "records_scanned": 359,
+  "fields": {
+    "id": {
+      "type": "string",
+      "nullable": false
+    },
+    "tranid": {
+      "type": "string",
+      "nullable": false
+    },
+    "type": {
+      "type": "string",
+      "nullable": false
+    },
+    "status": {
+      "type": "string",
+      "nullable": false
+    },
+    "entity": {
+      "type": "string",
+      "nullable": false
+    },
+    "currency": {
+      "type": "string",
+      "nullable": false
+    },
+    "foreigntotal": {
+      "type": "string",
+      "nullable": false
+    },
+    "memo": {
+      "type": "string",
+      "nullable": true
+    },
+    "trandate": {
+      "type": "string",
+      "nullable": false,
+      "format": "date"
+    },
+    "lastmodifieddate": {
+      "type": "string",
+      "nullable": false,
+      "format": "date-time"
+    }
+  }
+}

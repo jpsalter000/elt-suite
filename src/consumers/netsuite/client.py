@@ -23,7 +23,7 @@ from urllib.parse import quote
 
 import httpx
 
-from elt_suite.contract import JobContext, Record
+from elt_suite.contract import JobContext, Record, SourceError
 
 SUITEQL_PATH = "/services/rest/query/v1/suiteql"
 SQL_DATETIME = "YYYY-MM-DD HH24:MI:SS"
@@ -40,6 +40,40 @@ TRANSACTION_COLUMNS = f"""
     TO_CHAR(trandate, 'YYYY-MM-DD') AS trandate,
     TO_CHAR(lastmodifieddate, '{SQL_DATETIME}') AS lastmodifieddate
 """
+
+DEPARTMENT_COLUMNS = "id, name, isinactive"
+
+EMPLOYEE_COLUMNS = f"""
+    id, entityid, firstname, lastname, email, department, title, isinactive,
+    TO_CHAR(hiredate, 'YYYY-MM-DD') AS hiredate,
+    TO_CHAR(releasedate, 'YYYY-MM-DD') AS releasedate,
+    laborcost, custentity_burdened_cost, custentity_hours_per_day,
+    TO_CHAR(lastmodifieddate, '{SQL_DATETIME}') AS lastmodifieddate
+"""
+
+PROJECT_COLUMNS = f"""
+    id, entityid, companyname, parent, custentity_project_status,
+    TO_CHAR(startdate, 'YYYY-MM-DD') AS startdate,
+    TO_CHAR(projectedenddate, 'YYYY-MM-DD') AS projectedenddate,
+    department, projectmanager, isinactive,
+    TO_CHAR(lastmodifieddate, '{SQL_DATETIME}') AS lastmodifieddate
+"""
+
+ITEM_COLUMNS = "id, itemid, displayname, itemtype, isinactive"
+
+TIME_ENTRY_COLUMNS = f"""
+    id, employee, TO_CHAR(trandate, 'YYYY-MM-DD') AS trandate, hours, customer, item,
+    department, memo, isbillable,
+    TO_CHAR(lastmodifieddate, '{SQL_DATETIME}') AS lastmodifieddate
+"""
+
+TRANSACTION_LINE_COLUMNS = (
+    "transaction, id, linesequencenumber, mainline, entity, item, memo, foreignamount"
+)
+
+ACCOUNTING_LINE_COLUMNS = "transaction, transactionline, account, amount, posting"
+
+ACCOUNT_COLUMNS = "id, acctnumber, fullname, accttype, isinactive"
 
 
 def _pct(value: str) -> str:
@@ -81,6 +115,17 @@ class TokenAuth(httpx.Auth):
         yield request
 
 
+def _api_error(resp: httpx.Response) -> SourceError:
+    """NetSuite explains failures in ``o:errorDetails``; surface that, not just the status."""
+    try:
+        body = resp.json()
+        details = "; ".join(d["detail"] for d in body["o:errorDetails"])
+        reason = f"{body.get('title') or resp.reason_phrase}: {details}"
+    except (ValueError, KeyError, TypeError):
+        reason = resp.text[:500] or resp.reason_phrase
+    return SourceError(f"NetSuite SuiteQL request failed: {resp.status_code} {reason}")
+
+
 def suiteql(ctx: JobContext, query: str) -> Iterator[Record]:
     """Stream every row of a SuiteQL query, one page at a time."""
     host = ctx.credentials["account_id"].lower().replace("_", "-")
@@ -96,7 +141,8 @@ def suiteql(ctx: JobContext, query: str) -> Iterator[Record]:
             headers={"Prefer": "transient"},
             auth=auth,
         )
-        resp.raise_for_status()
+        if resp.is_error:
+            raise _api_error(resp)
         page = resp.json()
         for item in page.get("items", []):
             item.pop("links", None)
@@ -120,9 +166,52 @@ def _incremental_query(ctx: JobContext, columns: str, table: str) -> str:
     return query
 
 
+def _full_query(columns: str, table: str, order_by: str = "id") -> str:
+    return f"SELECT {columns} FROM {table} ORDER BY {order_by}"
+
+
 def fetch_customers(ctx: JobContext) -> Iterator[Record]:
     return suiteql(ctx, _incremental_query(ctx, CUSTOMER_COLUMNS, "customer"))
 
 
 def fetch_transactions(ctx: JobContext) -> Iterator[Record]:
     return suiteql(ctx, _incremental_query(ctx, TRANSACTION_COLUMNS, "transaction"))
+
+
+def fetch_departments(ctx: JobContext) -> Iterator[Record]:
+    return suiteql(ctx, _full_query(DEPARTMENT_COLUMNS, "department"))
+
+
+def fetch_employees(ctx: JobContext) -> Iterator[Record]:
+    return suiteql(ctx, _incremental_query(ctx, EMPLOYEE_COLUMNS, "employee"))
+
+
+def fetch_projects(ctx: JobContext) -> Iterator[Record]:
+    """Projects are ``job`` records in SuiteQL."""
+    return suiteql(ctx, _incremental_query(ctx, PROJECT_COLUMNS, "job"))
+
+
+def fetch_items(ctx: JobContext) -> Iterator[Record]:
+    return suiteql(ctx, _full_query(ITEM_COLUMNS, "item"))
+
+
+def fetch_time_entries(ctx: JobContext) -> Iterator[Record]:
+    """Time entries are ``timebill`` records in SuiteQL."""
+    return suiteql(ctx, _incremental_query(ctx, TIME_ENTRY_COLUMNS, "timebill"))
+
+
+def fetch_transaction_lines(ctx: JobContext) -> Iterator[Record]:
+    """Lines have no modification date of their own, so they are re-read in full."""
+    query = _full_query(TRANSACTION_LINE_COLUMNS, "transactionline", "transaction, id")
+    return suiteql(ctx, query)
+
+
+def fetch_transaction_accounting_lines(ctx: JobContext) -> Iterator[Record]:
+    query = _full_query(
+        ACCOUNTING_LINE_COLUMNS, "transactionaccountingline", "transaction, transactionline"
+    )
+    return suiteql(ctx, query)
+
+
+def fetch_accounts(ctx: JobContext) -> Iterator[Record]:
+    return suiteql(ctx, _full_query(ACCOUNT_COLUMNS, "account"))

@@ -1,0 +1,50 @@
+{
+  "consumer": "vandelay_netsuite_extract_and_load",
+  "job": "customers",
+  "primary_keys": [
+    "id"
+  ],
+  "incremental_key": "lastmodifieddate",
+  "generated_at": "2026-10-05T22:34:18+00:00",
+  "records_scanned": 21,
+  "fields": {
+    "id": {
+      "type": "string",
+      "nullable": false
+    },
+    "entityid": {
+      "type": "string",
+      "nullable": false
+    },
+    "companyname": {
+      "type": "string",
+      "nullable": false
+    },
+    "email": {
+      "type": "string",
+      "nullable": true
+    },
+    "phone": {
+      "type": "string",
+      "nullable": true
+    },
+    "isinactive": {
+      "type": "string",
+      "nullable": false
+    },
+    "subsidiary": {
+      "type": "string",
+      "nullable": false
+    },
+    "datecreated": {
+      "type": "string",
+      "nullable": false,
+      "format": "date-time"
+    },
+    "lastmodifieddate": {
+      "type": "string",
+      "nullable": false,
+      "format": "date-time"
+    }
+  }
+}

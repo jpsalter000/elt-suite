@@ -1,0 +1,24 @@
+{
+  "consumer": "vandelay_netsuite_extract_and_load",
+  "job": "departments",
+  "primary_keys": [
+    "id"
+  ],
+  "incremental_key": null,
+  "generated_at": "2026-10-05T22:34:13+00:00",
+  "records_scanned": 7,
+  "fields": {
+    "id": {
+      "type": "string",
+      "nullable": false
+    },
+    "name": {
+      "type": "string",
+      "nullable": false
+    },
+    "isinactive": {
+      "type": "string",
+      "nullable": false
+    }
+  }
+}
