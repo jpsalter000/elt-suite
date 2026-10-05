@@ -15,7 +15,7 @@ from elt_suite import paths
 from elt_suite.config import load_consumer
 from elt_suite.contract import iter_records
 from elt_suite.inference.executor import infer_schema
-from mock_apis import cartwheel, helpline, shopfront, ticketdesk
+from mock_apis import cartwheel, helpline, netsuite, shopfront, ticketdesk
 
 ROOT = Path(__file__).parents[1]
 CASES = [
@@ -28,6 +28,21 @@ CASES = [
     ("umbrella_cartwheel_extract_and_load", cartwheel.create_app, "order_items"),
     ("hooli_helpline_extract_and_load", helpline.create_app, "cases"),
     ("hooli_helpline_extract_and_load", helpline.create_app, "staff"),
+    *[
+        ("vandelay_netsuite_extract_and_load", netsuite.create_app, job)
+        for job in (
+            "departments",
+            "employees",
+            "customers",
+            "projects",
+            "items",
+            "time_entries",
+            "transactions",
+            "transaction_lines",
+            "transaction_accounting_lines",
+            "accounts",
+        )
+    ],  # fmt: skip
 ]
 
 
@@ -41,6 +56,9 @@ def test_committed_schema_matches_inference(monkeypatch, name, create_app, job):
     monkeypatch.setenv("UMBRELLA_CARTWHEEL_PASSWORD", cartwheel.DEMO_PASSWORD)
     monkeypatch.setenv("HOOLI_HELPLINE_KEY_ID", helpline.DEMO_KEY_ID)
     monkeypatch.setenv("HOOLI_HELPLINE_SECRET", helpline.DEMO_SECRET)
+    for key, value in netsuite.DEMO_CREDENTIALS.items():
+        monkeypatch.setenv(f"VANDELAY_NS_{key.upper()}", value)
+    monkeypatch.delenv("VANDELAY_NS_BASE_URL", raising=False)
     app = create_app()
     monkeypatch.setattr(contract, "make_client", lambda: TestClient(app))
 
