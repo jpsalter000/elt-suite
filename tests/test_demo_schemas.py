@@ -15,7 +15,7 @@ from elt_suite import paths
 from elt_suite.config import load_consumer
 from elt_suite.contract import iter_records
 from elt_suite.inference.executor import infer_schema
-from mock_apis import shopfront, ticketdesk
+from mock_apis import cartwheel, helpline, shopfront, ticketdesk
 
 ROOT = Path(__file__).parents[1]
 CASES = [
@@ -23,6 +23,11 @@ CASES = [
     ("globex_shopfront_extract_and_load", shopfront.create_app, "orders"),
     ("initech_ticketdesk_extract_and_load", ticketdesk.create_app, "tickets"),
     ("initech_ticketdesk_extract_and_load", ticketdesk.create_app, "agents"),
+    ("umbrella_cartwheel_extract_and_load", cartwheel.create_app, "customers"),
+    ("umbrella_cartwheel_extract_and_load", cartwheel.create_app, "orders"),
+    ("umbrella_cartwheel_extract_and_load", cartwheel.create_app, "order_items"),
+    ("hooli_helpline_extract_and_load", helpline.create_app, "cases"),
+    ("hooli_helpline_extract_and_load", helpline.create_app, "staff"),
 ]
 
 
@@ -32,6 +37,10 @@ def test_committed_schema_matches_inference(monkeypatch, name, create_app, job):
     monkeypatch.setenv("GLOBEX_SHOPFRONT_CLIENT_ID", shopfront.DEMO_CLIENT_ID)
     monkeypatch.setenv("GLOBEX_SHOPFRONT_CLIENT_SECRET", shopfront.DEMO_CLIENT_SECRET)
     monkeypatch.setenv("INITECH_TICKETDESK_API_KEY", ticketdesk.DEMO_API_KEY)
+    monkeypatch.setenv("UMBRELLA_CARTWHEEL_USERNAME", cartwheel.DEMO_USERNAME)
+    monkeypatch.setenv("UMBRELLA_CARTWHEEL_PASSWORD", cartwheel.DEMO_PASSWORD)
+    monkeypatch.setenv("HOOLI_HELPLINE_KEY_ID", helpline.DEMO_KEY_ID)
+    monkeypatch.setenv("HOOLI_HELPLINE_SECRET", helpline.DEMO_SECRET)
     app = create_app()
     monkeypatch.setattr(contract, "make_client", lambda: TestClient(app))
 

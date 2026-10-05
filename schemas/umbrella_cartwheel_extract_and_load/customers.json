@@ -1,0 +1,64 @@
+{
+  "consumer": "umbrella_cartwheel_extract_and_load",
+  "job": "customers",
+  "primary_keys": [
+    "customerId"
+  ],
+  "incremental_key": "modified",
+  "generated_at": "2026-09-29T21:47:31+00:00",
+  "records_scanned": 150,
+  "fields": {
+    "customerId": {
+      "type": "integer",
+      "nullable": false
+    },
+    "firstName": {
+      "type": "string",
+      "nullable": false
+    },
+    "lastName": {
+      "type": "string",
+      "nullable": false
+    },
+    "emailAddress": {
+      "type": "string",
+      "nullable": false
+    },
+    "loyaltyTier": {
+      "type": "string",
+      "nullable": false
+    },
+    "marketingConsent": {
+      "type": "string",
+      "nullable": false
+    },
+    "addrLine1": {
+      "type": "string",
+      "nullable": false
+    },
+    "addrCity": {
+      "type": "string",
+      "nullable": false
+    },
+    "addrCountry": {
+      "type": "string",
+      "nullable": false
+    },
+    "created": {
+      "type": "integer",
+      "nullable": false
+    },
+    "modified": {
+      "type": "integer",
+      "nullable": false
+    },
+    "isDeleted": {
+      "type": "boolean",
+      "nullable": false
+    },
+    "deletedAt": {
+      "type": "integer",
+      "nullable": true
+    }
+  }
+}
