@@ -34,7 +34,7 @@ def main() -> None:
             sql.SQL(verb + " ROLE {} WITH LOGIN PASSWORD %s").format(sql.Identifier(role)),
             [password],
         )
-        print(f"bootstrap: {verb.lower()}d role {role}")
+        print(f"bootstrap: {'updated' if verb == 'ALTER' else 'created'} role {role}")
         # Since PostgreSQL 16, creating a database owned by a role requires membership.
         cur.execute(sql.SQL("GRANT {} TO CURRENT_USER").format(sql.Identifier(role)))
         cur.execute("SELECT 1 FROM pg_database WHERE datname = %s", [database])

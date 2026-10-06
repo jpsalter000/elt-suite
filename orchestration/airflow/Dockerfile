@@ -43,11 +43,14 @@ COPY --from=elt /opt/elt /opt/elt
 COPY --chown=airflow:root orchestration/airflow/dags /opt/airflow/dags
 COPY --chown=airflow:root --chmod=0755 orchestration/airflow/entrypoint.sh /opt/elt-airflow/entrypoint.sh
 COPY --chown=airflow:root orchestration/airflow/bootstrap.py /opt/elt-airflow/bootstrap.py
+COPY --chown=airflow:root --chmod=0755 orchestration/airflow/db-url /opt/elt-airflow/db-url
 
 ENV ELT_GRAPH_DIR=/opt/elt/graphs \
     ELT_HOME=/opt/elt/app \
     ELT_BIN=/opt/elt/.venv/bin/elt \
     ELT_RUNNER=local \
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN_CMD="/opt/elt-airflow/db-url sync" \
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN_ASYNC_CMD="/opt/elt-airflow/db-url async" \
     AIRFLOW__CORE__LOAD_EXAMPLES=False \
     AIRFLOW__CORE__EXECUTOR=LocalExecutor \
     AIRFLOW__CORE__AUTH_MANAGER=airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager

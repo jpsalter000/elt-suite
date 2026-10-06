@@ -1,3 +1,41 @@
+# `docker compose up -d` starts only the warehouse (Postgres on :5432).
+#
+# `docker compose --profile airflow up -d --build` adds a local Airflow (UI on
+# http://localhost:8080, admin / admin) that runs the pipelines through a local elt
+# CLI (LocalRunner), plus the NetSuite mock the Vandelay consumer reads from. It uses
+# the same image and bootstrap as the ECS deployment. All secrets here are local
+# demo values.
+
+x-airflow: &airflow
+  profiles: [airflow]
+  image: elt-suite-airflow:local
+  build:
+    context: .
+    dockerfile: orchestration/airflow/Dockerfile
+    target: airflow
+  environment: &airflow-env
+    AIRFLOW_DB_HOST: warehouse
+    AIRFLOW_DB_USER: airflow
+    AIRFLOW_DB_PASSWORD: airflow
+    AIRFLOW__CORE__FERNET_KEY: ZWx0LXN1aXRlIGxvY2FsIGRldiBmZXJuZXQga2V5ISE=
+    AIRFLOW__API_AUTH__JWT_SECRET: local-dev-jwt-secret
+    AIRFLOW__API__SECRET_KEY: local-dev-api-secret
+    AIRFLOW__CORE__EXECUTION_API_SERVER_URL: http://airflow-apiserver:8080/execution/
+    ELT_RUNNER: local
+    # What LocalRunner's elt CLI needs: the warehouse and the mock's demo credentials.
+    WAREHOUSE_DSN: postgresql://elt:elt@warehouse:5432/warehouse
+    VANDELAY_NS_BASE_URL: http://mock-netsuite:8005
+    VANDELAY_NS_ACCOUNT_ID: VANDELAY_SB1
+    VANDELAY_NS_CONSUMER_KEY: vandelay-demo-consumer-key
+    VANDELAY_NS_CONSUMER_SECRET: vandelay-demo-consumer-secret
+    VANDELAY_NS_TOKEN_ID: vandelay-demo-token-id
+    VANDELAY_NS_TOKEN_SECRET: vandelay-demo-token-secret
+  depends_on:
+    airflow-init:
+      condition: service_completed_successfully
+    mock-netsuite:
+      condition: service_healthy
+
 services:
   warehouse:
     image: postgres:16
@@ -9,6 +47,54 @@ services:
       - "5432:5432"
     volumes:
       - warehouse-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "elt", "-d", "warehouse"]
+      interval: 5s
+      retries: 10
+
+  mock-netsuite:
+    profiles: [airflow]
+    image: elt-suite-mocks:local
+    build:
+      context: .
+      target: mocks
+    command: ["netsuite", "--host", "0.0.0.0"]
+    ports:
+      - "8005:8005"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8005/docs')"]
+      interval: 5s
+      retries: 20
+
+  airflow-init:
+    <<: *airflow
+    command: ["bootstrap"]
+    environment:
+      <<: *airflow-env
+      PGUSER: elt # the warehouse's admin login creates Airflow's own role and database
+      PGPASSWORD: elt
+      _AIRFLOW_WWW_USER_PASSWORD: admin
+    depends_on:
+      warehouse:
+        condition: service_healthy
+
+  airflow-apiserver:
+    <<: *airflow
+    command: ["api-server", "--port", "8080"]
+    ports:
+      - "8080:8080"
+
+  airflow-scheduler:
+    <<: *airflow
+    command: ["scheduler"]
+
+  airflow-dag-processor:
+    <<: *airflow
+    command: ["dag-processor"]
+
+  airflow-triggerer:
+    <<: *airflow
+    command: ["triggerer"]
 
 volumes:
   warehouse-data:
