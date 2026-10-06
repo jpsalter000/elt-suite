@@ -3,7 +3,7 @@
 The semantic model is derived from the dbt reporting contracts
 (transform/models/reporting/_reporting.yml), so every Power BI column exists, with
 its type, in a view Power BI can read. Measures port the workbook's DAX to the
-modernized definitions (docs/utilization-logic.md).
+modernized definitions in the dbt models.
 
     uv run python powerbi/generate.py   # rewrites powerbi/Utilization.*
 

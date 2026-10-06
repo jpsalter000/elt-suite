@@ -50,3 +50,6 @@ logs/
 # --- Power BI Desktop local state ---
 **/.pbi/localSettings.json
 **/.pbi/cache.abf
+
+# --- Documentation directories (kept local, never published) ---
+docs/

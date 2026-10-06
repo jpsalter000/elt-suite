@@ -1,4 +1,4 @@
-# Self-hosted Airflow on Fargate (ADR 0003) that orchestrates elt-suite pipelines.
+# Self-hosted Airflow on Fargate that orchestrates elt-suite pipelines.
 #
 # One service runs one task with the four Airflow 3 components and LocalExecutor,
 # so they share localhost. Pipeline work does not run here: every DAG task starts
@@ -6,7 +6,7 @@
 #
 # Nothing is exposed. The service has no load balancer and the task security group
 # allows no inbound traffic; operators reach the UI with ECS Exec port forwarding
-# (see docs/orchestration.md). Generated secrets are written to Secrets Manager
+# (aws ssm start-session to the api-server container). Generated secrets are written to Secrets Manager
 # write-only, so they never appear in Terraform state.
 
 data "aws_region" "current" {}
@@ -303,6 +303,6 @@ resource "aws_ecs_service" "this" {
   network_configuration {
     subnets          = var.subnet_ids
     security_groups  = [var.security_group_id]
-    assign_public_ip = true # no NAT Gateway (ADR 0002); the SG allows no inbound
+    assign_public_ip = true # no NAT Gateway; the SG allows no inbound
   }
 }

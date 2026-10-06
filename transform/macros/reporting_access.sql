@@ -1,5 +1,5 @@
 {#- Power BI connects as "powerbi", a login role that only inherits reporting_reader.
-    Its password is set once by an administrator (see docs/powerbi.md), never here,
+    Its password is set once by an administrator (ALTER ROLE powerbi PASSWORD ...), never here,
     so it can't end up in dbt's logs. -#}
 {% macro create_reporting_roles() %}
 do $$

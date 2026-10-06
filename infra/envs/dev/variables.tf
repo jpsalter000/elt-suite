@@ -26,7 +26,7 @@ variable "schedule_expression" {
 }
 
 variable "enable_airflow" {
-  description = "Run self-hosted Airflow (ADR 0003). When false, schedule_expression drives the runner instead."
+  description = "Run self-hosted Airflow on Fargate. When false, schedule_expression drives the runner instead."
   type        = bool
   default     = true
 }

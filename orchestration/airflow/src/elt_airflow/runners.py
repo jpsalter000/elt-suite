@@ -27,7 +27,7 @@ class EcsRunner:
     log_group: str
     container: str = "elt"
     log_stream_prefix: str = "elt"
-    # Without a NAT gateway (ADR 0002) tasks reach ECR, Secrets Manager and CloudWatch
+    # Without a NAT gateway, tasks reach ECR, Secrets Manager and CloudWatch
     # through the internet gateway, which needs a public IP.
     assign_public_ip: bool = True
     deferrable: bool = True

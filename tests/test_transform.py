@@ -3,7 +3,7 @@
 The oracle is a separate implementation of the modernized utilization and margin
 rules in plain Python, computed straight from the mock dataset and the dbt seeds.
 If the SQL and the oracle agree on every employee-week and every project, the
-views implement the rules in docs/utilization-logic.md.
+views implement the modernized rules.
 """
 
 from __future__ import annotations

@@ -50,7 +50,6 @@ powerbi/                                # Power BI project (TMDL model + PBIR re
 infra/
   modules/{network,registry,warehouse,runner,airflow}/   # Terraform modules, each with `terraform test`
   envs/dev/                             # root module: composes the modules, S3 backend
-docs/                                   # ADRs, orchestration, utilization logic, Power BI
 Dockerfile                              # multi-stage uv build -> non-root runtime image (+ mocks image)
 ```
 
@@ -201,9 +200,9 @@ docker compose exec warehouse psql -U elt -d warehouse -c \
 
 Or run it under Airflow: `docker compose --profile airflow up -d --build`, then unpause and trigger `utilization_daily` at http://localhost:8080 (admin / admin).
 
-- **Logic:** [docs/utilization-logic.md](docs/utilization-logic.md) records every rule taken from the workbook, where it lives now, and each deliberate improvement. Examples: a full calendar, released staff kept in history, expected hours floored at zero, and pass-through revenue no longer subtracted twice. dbt unit tests pin each rule. An integration test compares every employee-week and every project against an independent Python implementation.
-- **Orchestration:** [docs/orchestration.md](docs/orchestration.md) covers the task contract every orchestrator wraps, the Airflow adapter (ECS and local runners), and sketches for Dagster, Prefect and Step Functions.
-- **Power BI:** [docs/powerbi.md](docs/powerbi.md) covers the semantic model and report pages, and how to connect.
+- **Logic:** every rule is taken from the workbook, with deliberate improvements. Examples: a full calendar, released staff kept in history, expected hours floored at zero, and pass-through revenue no longer subtracted twice. dbt unit tests pin each rule. An integration test compares every employee-week and every project against an independent Python implementation.
+- **Orchestration:** every task runs with `elt pipeline run-task <pipeline> <task>`, and `elt pipeline export` writes the task graphs. The Airflow adapter (`orchestration/airflow`) turns those graphs into DAGs, with ECS and local runners; any other orchestrator can wrap the same contract.
+- **Power BI:** `powerbi/Utilization.pbip` is generated from the dbt reporting contracts (`uv run python powerbi/generate.py`). It connects as the `powerbi` login, which can read only the `reporting` schema.
 
 ## Mock APIs
 
@@ -223,7 +222,7 @@ Four mock REST APIs ship with the repo so the hard parts of extraction and norma
 
 A fifth mock, **NetSuite** (`elt-mock netsuite`, port 8005), serves SuiteQL over REST with token-based auth (OAuth 1.0a HMAC-SHA256) for the utilization pipeline. It parses a subset of SuiteQL and returns values the way SuiteQL does: strings, `T`/`F` flags, account-format dates and omitted nulls. It enforces NetSuite's paging limits.
 
-[`docs/vendor-variants.md`](docs/vendor-variants.md) maps every vendor field and vocabulary onto common `customers` / `orders` / `order_lines` and `tickets` / `agents` models. For example, `IN_TRANSIT` → `shipped`, `P1` → `urgent`, `on_hold` → `pending`, cents → decimal, epoch → `timestamptz`. It is the specification for the dbt layer.
+Each domain's two vendors map onto common `customers` / `orders` / `order_lines` and `tickets` / `agents` models. For example, `IN_TRANSIT` → `shipped`, `P1` → `urgent`, `on_hold` → `pending`, cents → decimal, epoch → `timestamptz`.
 
 Every invalid parameter is reported at once, with the accepted values or format. For example, `GET /v1/orders?limit=0&updated_since=yesterday` on Shopfront returns:
 
@@ -276,11 +275,11 @@ flowchart LR
 
 | Module | What it creates |
 | --- | --- |
-| `network` | VPC, 2 public and 2 isolated subnets, internet gateway, route tables (isolated has no routes), task and database security groups, NACLs mirroring them, an emptied default security group, and flow logs of rejected traffic. **No NAT Gateway**; see [ADR 2](docs/adr/0002-public-subnets-without-a-nat-gateway.md). |
+| `network` | VPC, 2 public and 2 isolated subnets, internet gateway, route tables (isolated has no routes), task and database security groups, NACLs mirroring them, an emptied default security group, and flow logs of rejected traffic. **No NAT Gateway**: tasks get public IPs and a security group with no inbound rules, which saves about $33 a month. |
 | `registry` | ECR repository with immutable tags, scan on push, encryption, and a lifecycle rule keeping 10 images. |
 | `warehouse` | RDS Postgres 16 (`db.t4g.micro`, 20 GB gp3), private, encrypted, TLS-only. RDS generates the password and keeps it in Secrets Manager, so it never appears in Terraform state. |
 | `runner` | ECS cluster (with Fargate Spot capacity), a 14-day log group, and a hardened Fargate task definition: non-root, read-only root filesystem, writable `/tmp` only. It has a least-privilege execution role, optional sidecars (dev runs the NetSuite mock this way), and an optional EventBridge schedule. |
-| `airflow` | Self-hosted Airflow 3 as one Fargate Spot service: api-server, scheduler, dag-processor and triggerer, with an init container that bootstraps Airflow's own database role. Generated secrets are written write-only, so they never enter state. There is no load balancer and no inbound access; the UI is reached through ECS Exec port forwarding. Its role can only start, watch and stop the elt task. See [ADR 3](docs/adr/0003-self-hosted-airflow-on-ecs.md). |
+| `airflow` | Self-hosted Airflow 3 as one Fargate Spot service: api-server, scheduler, dag-processor and triggerer, with an init container that bootstraps Airflow's own database role. Generated secrets are written write-only, so they never enter state. There is no load balancer and no inbound access; the UI is reached through ECS Exec port forwarding. Its role can only start, watch and stop the elt task. Self-hosted rather than MWAA: about $13 a month on Spot instead of $250 or more plus NAT. |
 
 **Credentials.** The task gets its database login as `PGUSER`/`PGPASSWORD` from the RDS secret. `WAREHOUSE_DSN` holds no secret (`postgresql:///warehouse?sslmode=require`), and libpq fills in the rest. Consumer credentials go in SSM Parameter Store and are mapped to environment variables with `consumer_secrets`.
 
@@ -300,7 +299,6 @@ Test the infrastructure locally, no AWS account needed:
 for d in infra/modules/* infra/envs/*; do terraform -chdir=$d init -backend=false && terraform -chdir=$d test; done
 ```
 
-Decisions are recorded in [`docs/adr/`](docs/adr/): [keeping infrastructure in this repo](docs/adr/0001-infrastructure-in-the-application-repo.md), [public subnets without a NAT Gateway](docs/adr/0002-public-subnets-without-a-nat-gateway.md) and [self-hosting Airflow on ECS](docs/adr/0003-self-hosted-airflow-on-ecs.md).
 
 ## Development
 
