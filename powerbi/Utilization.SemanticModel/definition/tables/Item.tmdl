@@ -1,0 +1,62 @@
+table Item
+	lineageTag: 6579a5c5-7960-5c09-92e4-f671f86206a0
+
+	column 'Item ID'
+		dataType: int64
+		formatString: 0
+		lineageTag: 9d4da818-4528-5f0c-9256-e02b1588def1
+		summarizeBy: none
+		sourceColumn: item_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Item Name'
+		dataType: string
+		lineageTag: e18bc5d2-1c8c-5cf0-a531-a1bebdc99f09
+		summarizeBy: none
+		sourceColumn: item_name
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Category Code'
+		dataType: string
+		lineageTag: 900f0e19-8045-5edd-b8a4-5fa0a2c42010
+		summarizeBy: none
+		sourceColumn: category_code
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Category Name'
+		dataType: string
+		lineageTag: 3f3d0b86-2179-54b8-9c19-b4ca4fb99c1f
+		summarizeBy: none
+		sourceColumn: category_name
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Counts As Worked'
+		dataType: boolean
+		lineageTag: 31d292b3-6f25-5fef-8bd3-5671a7032520
+		summarizeBy: none
+		sourceColumn: counts_as_worked
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Is Client Facing'
+		dataType: boolean
+		lineageTag: 92a02323-8db5-55bf-af73-2258ae3acb4a
+		summarizeBy: none
+		sourceColumn: is_client_facing
+
+		annotation SummarizationSetBy = Automatic
+
+	partition Item = m
+		mode: import
+		source =
+				let
+				    Source = PostgreSQL.Database(Server, Database),
+				    Data = Source{[Schema = "reporting", Item = "dim_item"]}[Data]
+				in
+				    Data
+
+	annotation PBI_ResultType = Table

@@ -1,0 +1,13 @@
+expression Server = "localhost:5432" meta [IsParameterQuery = true, Type = "Text", IsParameterQueryRequired = true]
+	lineageTag: 6e06c0fe-8e43-5d87-b977-82f817717182
+
+	annotation PBI_ResultType = Text
+
+	annotation PBI_NavigationStepName = Navigation
+
+expression Database = "warehouse" meta [IsParameterQuery = true, Type = "Text", IsParameterQueryRequired = true]
+	lineageTag: 7ff93368-8542-54f9-8bc3-b8ba9a0930fb
+
+	annotation PBI_ResultType = Text
+
+	annotation PBI_NavigationStepName = Navigation

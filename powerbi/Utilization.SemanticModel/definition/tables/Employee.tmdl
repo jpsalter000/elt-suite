@@ -1,0 +1,90 @@
+table Employee
+	lineageTag: 5d454c72-088c-56dc-bed1-d0be7c32d3e2
+
+	column 'Employee ID'
+		dataType: int64
+		formatString: 0
+		lineageTag: 509c05b6-41ed-5a14-a0f1-e5531117c7cd
+		summarizeBy: none
+		sourceColumn: employee_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Employee Name'
+		dataType: string
+		lineageTag: bdb4bc4c-4826-512e-9e89-4ac0929a54a8
+		summarizeBy: none
+		sourceColumn: employee_name
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Department Name'
+		dataType: string
+		lineageTag: 893d9e9d-bd54-5eb8-8c5b-6610c53ea3fb
+		summarizeBy: none
+		sourceColumn: department_name
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Group Name'
+		dataType: string
+		description: Department rolled up via the department_groups seed (e.g. Account Team).
+		lineageTag: f0d36d82-f75a-563b-8771-e94f7e822a59
+		summarizeBy: none
+		sourceColumn: group_name
+
+		annotation SummarizationSetBy = Automatic
+
+	column Title
+		dataType: string
+		lineageTag: 4a2a44ac-1911-5e3a-ae07-625324eb2311
+		summarizeBy: none
+		sourceColumn: title
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Hire Date'
+		dataType: dateTime
+		formatString: Short Date
+		lineageTag: 00596767-3222-589c-8427-34da90241492
+		summarizeBy: none
+		sourceColumn: hire_date
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Release Date'
+		dataType: dateTime
+		formatString: Short Date
+		lineageTag: 34ca7462-ea3e-5569-86d3-0adb4f6879f2
+		summarizeBy: none
+		sourceColumn: release_date
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Employment Status'
+		dataType: string
+		lineageTag: ac51a9e2-e4d2-58dd-965d-8aff1c2217c9
+		summarizeBy: none
+		sourceColumn: employment_status
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Standard Hours Per Day'
+		dataType: double
+		formatString: #,0.00
+		lineageTag: 386f501b-210b-5fa3-8162-833774571198
+		summarizeBy: none
+		sourceColumn: standard_hours_per_day
+
+		annotation SummarizationSetBy = Automatic
+
+	partition Employee = m
+		mode: import
+		source =
+				let
+				    Source = PostgreSQL.Database(Server, Database),
+				    Data = Source{[Schema = "reporting", Item = "dim_employee"]}[Data]
+				in
+				    Data
+
+	annotation PBI_ResultType = Table

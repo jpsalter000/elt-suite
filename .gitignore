@@ -46,3 +46,7 @@ transform/target/
 transform/logs/
 transform/.user.yml
 logs/
+
+# --- Power BI Desktop local state ---
+**/.pbi/localSettings.json
+**/.pbi/cache.abf

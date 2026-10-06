@@ -1,0 +1,54 @@
+table Client
+	lineageTag: ed0079d7-20ea-5ccc-9943-61d800430afd
+
+	column 'Client ID'
+		dataType: int64
+		formatString: 0
+		lineageTag: f3e28668-7664-5684-943a-354074e831e2
+		summarizeBy: none
+		sourceColumn: client_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Client Number'
+		dataType: string
+		lineageTag: 3899da21-fb95-5197-a8bf-3e89a4d32604
+		summarizeBy: none
+		sourceColumn: client_number
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Client Name'
+		dataType: string
+		lineageTag: 83bb48c8-6b7f-5bc5-b868-74c5fdf6e6b8
+		summarizeBy: none
+		sourceColumn: client_name
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Is Internal'
+		dataType: boolean
+		lineageTag: b0017c9b-8c56-57ac-a8e2-5b9baf5c0903
+		summarizeBy: none
+		sourceColumn: is_internal
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Is Inactive'
+		dataType: boolean
+		lineageTag: e1227b90-2940-5e61-bd27-3fe391db47e0
+		summarizeBy: none
+		sourceColumn: is_inactive
+
+		annotation SummarizationSetBy = Automatic
+
+	partition Client = m
+		mode: import
+		source =
+				let
+				    Source = PostgreSQL.Database(Server, Database),
+				    Data = Source{[Schema = "reporting", Item = "dim_client"]}[Data]
+				in
+				    Data
+
+	annotation PBI_ResultType = Table

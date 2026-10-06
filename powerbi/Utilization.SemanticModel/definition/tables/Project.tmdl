@@ -1,0 +1,123 @@
+table Project
+	lineageTag: e32a990b-9e70-566a-9637-2ac04bb641cf
+
+	column 'Project ID'
+		dataType: int64
+		formatString: 0
+		lineageTag: a1eec69e-72d5-5e5d-836a-a9b22a6cc3d7
+		summarizeBy: none
+		sourceColumn: project_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Project Number'
+		dataType: string
+		lineageTag: 180a5770-e9bf-56ae-99cc-227d559f7f6f
+		summarizeBy: none
+		sourceColumn: project_number
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Project Name'
+		dataType: string
+		lineageTag: 282a78a8-7969-582f-b8d5-097620abaed2
+		summarizeBy: none
+		sourceColumn: project_name
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Project Display Name'
+		dataType: string
+		description: Number, client and name, as the workbook's Project Name.
+		lineageTag: 70cfd487-e617-5285-9cdc-e4d73287b3b8
+		summarizeBy: none
+		sourceColumn: project_display_name
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Client ID'
+		dataType: int64
+		formatString: 0
+		lineageTag: 791eed41-6245-5e22-9181-39a0c9f465c4
+		summarizeBy: none
+		sourceColumn: client_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Client Name'
+		dataType: string
+		lineageTag: 2e39c199-2c9a-5d49-8073-4e7dd187d0c8
+		summarizeBy: none
+		sourceColumn: client_name
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Project Status'
+		dataType: string
+		lineageTag: fe6cf7ac-0ee4-52b8-8de4-6e52daa32532
+		summarizeBy: none
+		sourceColumn: project_status
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Project Status Label'
+		dataType: string
+		lineageTag: c57a380b-08f4-56a7-a0fb-cd5bd79fe9cc
+		summarizeBy: none
+		sourceColumn: project_status_label
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Is Complete'
+		dataType: boolean
+		description: Finalized or closed: priced from invoices and credit memos.
+		lineageTag: 90808a45-cb9b-5ee9-b3d1-ad4c178d1381
+		summarizeBy: none
+		sourceColumn: is_complete
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Start Date'
+		dataType: dateTime
+		formatString: Short Date
+		lineageTag: 1db2d1f7-b73e-5522-8a59-cebff3811460
+		summarizeBy: none
+		sourceColumn: start_date
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Projected End Date'
+		dataType: dateTime
+		formatString: Short Date
+		lineageTag: 62a8e81e-8b1d-51bd-b137-a84afed3a0b1
+		summarizeBy: none
+		sourceColumn: projected_end_date
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Department Name'
+		dataType: string
+		lineageTag: f987deac-efe3-5e59-89c3-f449295ee7b6
+		summarizeBy: none
+		sourceColumn: department_name
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Project Lead'
+		dataType: string
+		lineageTag: 4f0d8e35-e282-59dc-94f9-07b112e0f8c5
+		summarizeBy: none
+		sourceColumn: project_lead
+
+		annotation SummarizationSetBy = Automatic
+
+	partition Project = m
+		mode: import
+		source =
+				let
+				    Source = PostgreSQL.Database(Server, Database),
+				    Data = Source{[Schema = "reporting", Item = "dim_project"]}[Data]
+				in
+				    Data
+
+	annotation PBI_ResultType = Table

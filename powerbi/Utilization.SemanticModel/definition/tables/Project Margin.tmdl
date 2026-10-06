@@ -1,0 +1,188 @@
+table 'Project Margin'
+	lineageTag: dc6b3761-97c0-5770-b001-7edd152b5130
+
+	column 'Project ID'
+		dataType: int64
+		formatString: 0
+		lineageTag: 7be93d7d-1f37-5b15-a471-7a44882db7c3
+		summarizeBy: none
+		sourceColumn: project_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Project Display Name'
+		dataType: string
+		lineageTag: 18e6b15f-a9a8-595e-a6e6-92f238b2880e
+		summarizeBy: none
+		sourceColumn: project_display_name
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Client Name'
+		dataType: string
+		lineageTag: 017a4b98-bd7b-5e4e-8886-4b118c043356
+		summarizeBy: none
+		sourceColumn: client_name
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Department Name'
+		dataType: string
+		lineageTag: f28d4814-cf70-548c-9cb8-beed7b720149
+		summarizeBy: none
+		sourceColumn: department_name
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Project Lead'
+		dataType: string
+		lineageTag: e9bc030c-1043-503b-93b2-378ba94e4a8e
+		summarizeBy: none
+		sourceColumn: project_lead
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Project Status Label'
+		dataType: string
+		lineageTag: fc39adbf-c69d-5031-b8cb-679652d2940f
+		summarizeBy: none
+		sourceColumn: project_status_label
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Start Date'
+		dataType: dateTime
+		formatString: Short Date
+		lineageTag: f1e8aafb-e645-50ad-b693-60599d77dd8a
+		summarizeBy: none
+		sourceColumn: start_date
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Total Hours'
+		dataType: double
+		formatString: #,0.00
+		lineageTag: 1fb44463-8bb1-585d-b0bf-4d5518600eb6
+		summarizeBy: none
+		sourceColumn: total_hours
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Time Cost'
+		dataType: decimal
+		formatString: \$#,0.00
+		lineageTag: 7bf5f3a3-43cf-5e99-8deb-99ed99c0d746
+		summarizeBy: none
+		sourceColumn: time_cost
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Burdened Time Cost'
+		dataType: decimal
+		formatString: \$#,0.00
+		lineageTag: f5aae347-78aa-5818-93ad-132081a96b47
+		summarizeBy: none
+		sourceColumn: burdened_time_cost
+
+		annotation SummarizationSetBy = Automatic
+
+	column Price
+		dataType: decimal
+		formatString: \$#,0.00
+		lineageTag: 98726ee9-ca5a-5c97-b4b8-67a3d6401178
+		summarizeBy: none
+		sourceColumn: price
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Pass Through Revenue'
+		dataType: decimal
+		formatString: \$#,0.00
+		lineageTag: 5e41de52-b497-5a71-bac2-be31a788dbb9
+		summarizeBy: none
+		sourceColumn: pass_through_revenue
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Net Revenue'
+		dataType: decimal
+		formatString: \$#,0.00
+		lineageTag: bd0fa6ba-c660-5ae4-9bb5-05f107ad09fd
+		summarizeBy: none
+		sourceColumn: net_revenue
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Field Cost'
+		dataType: decimal
+		formatString: \$#,0.00
+		lineageTag: 47a0fb5d-a8ea-5fa1-a00c-f100b50e645b
+		summarizeBy: none
+		sourceColumn: field_cost
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Incentive Cost'
+		dataType: decimal
+		formatString: \$#,0.00
+		lineageTag: 0898fc8e-7cfc-5b96-8883-87e2436d4108
+		summarizeBy: none
+		sourceColumn: incentive_cost
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Travel Cost'
+		dataType: decimal
+		formatString: \$#,0.00
+		lineageTag: d93c4198-e11b-5626-9238-4702ef7a01c0
+		summarizeBy: none
+		sourceColumn: travel_cost
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Project Profit'
+		dataType: decimal
+		formatString: \$#,0.00
+		lineageTag: 07b06ad7-28b3-59a6-aeb6-20b53e42a0f2
+		summarizeBy: none
+		sourceColumn: project_profit
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Project Profit %'
+		dataType: double
+		formatString: 0.0%
+		lineageTag: d7e99339-e8c6-53eb-be0d-0ccb790356d3
+		summarizeBy: none
+		sourceColumn: project_profit_pct
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Contribution Margin'
+		dataType: decimal
+		formatString: \$#,0.00
+		lineageTag: 74f5bdd8-d2e1-53e0-9b38-c90b70130235
+		summarizeBy: none
+		sourceColumn: contribution_margin
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Contribution Margin %'
+		dataType: double
+		formatString: 0.0%
+		lineageTag: aebfd614-7d11-506c-8ccc-2e9c8aef514d
+		summarizeBy: none
+		sourceColumn: contribution_margin_pct
+
+		annotation SummarizationSetBy = Automatic
+
+	partition 'Project Margin' = m
+		mode: import
+		source =
+				let
+				    Source = PostgreSQL.Database(Server, Database),
+				    Data = Source{[Schema = "reporting", Item = "rpt_project_margin"]}[Data]
+				in
+				    Data
+
+	annotation PBI_ResultType = Table

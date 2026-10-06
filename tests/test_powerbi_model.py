@@ -13,6 +13,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import re
+import sys
 from pathlib import Path
 
 import pytest
@@ -28,6 +29,7 @@ SCHEMA_PREFIX = "https://developer.microsoft.com/json-schemas/"
 def _generator():
     spec = importlib.util.spec_from_file_location("powerbi_generate", POWERBI / "generate.py")
     module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module  # dataclasses look their module up while defining
     spec.loader.exec_module(module)
     return module
 
