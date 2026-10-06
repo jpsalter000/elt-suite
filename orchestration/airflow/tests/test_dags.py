@@ -18,7 +18,6 @@ import pytest
 from elt_airflow import EcsRunner, GraphError, LocalRunner, build_dags, load_graphs, runner_from_env
 
 FIXTURES = Path(__file__).parent / "fixtures"
-DAGS_FOLDER = Path(__file__).parents[1] / "dags"
 ECS = EcsRunner(
     cluster="elt-suite-dev",
     task_definition="elt-suite-dev",
@@ -33,6 +32,16 @@ ECS = EcsRunner(
 def graphs(tmp_path):
     shutil.copy(FIXTURES / "demo_daily.json", tmp_path)
     return tmp_path
+
+
+def _dags_folder() -> Path:
+    """The repo's dags/ when run from a checkout, else Airflow's DAGs folder (the image)."""
+    local = Path(__file__).parents[1] / "dags"
+    if local.is_dir():
+        return local
+    from airflow.configuration import conf
+
+    return Path(conf.get("core", "dags_folder"))
 
 
 def _edges(dag):
@@ -52,7 +61,7 @@ def test_one_dag_per_graph_with_the_graphs_tasks_and_edges(graphs):
 
 def test_dags_follow_the_pipeline_schedule_without_backfills_or_overlap(graphs):
     dag = build_dags(graphs, ECS)["demo_daily"]
-    assert str(dag.timetable.summary) == "0 6 * * *"
+    assert dag.schedule == "0 6 * * *"
     assert dag.catchup is False
     assert dag.max_active_runs == 1
     assert "elt-suite" in dag.tags
@@ -64,7 +73,7 @@ def test_a_pipeline_without_a_schedule_is_triggered_manually(graphs):
     data["schedule"] = None
     (graphs / "demo_daily.json").write_text(json.dumps(data))
     dag = build_dags(graphs, ECS)["demo_daily"]
-    assert dag.timetable.summary in ("None", "Never, external triggers only")
+    assert dag.schedule is None
 
 
 # --- runners ---------------------------------------------------------------------------
@@ -155,11 +164,11 @@ def test_dependencies_must_name_tasks_in_the_graph(graphs):
 
 
 def test_the_dags_folder_imports_cleanly_with_the_baked_graphs(monkeypatch, graphs):
-    from airflow.models.dagbag import DagBag
+    from airflow.dag_processing.dagbag import DagBag
 
     monkeypatch.setenv("ELT_GRAPH_DIR", os.environ.get("ELT_GRAPH_DIR", str(graphs)))
     monkeypatch.setenv("ELT_RUNNER", "local")
-    bag = DagBag(dag_folder=str(DAGS_FOLDER), include_examples=False)
+    bag = DagBag(dag_folder=str(_dags_folder()))
     assert bag.import_errors == {}
     assert bag.dags, "no DAGs were built"
 
