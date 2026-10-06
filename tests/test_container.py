@@ -18,11 +18,13 @@ pytestmark = [
 ]
 
 
-def docker_run(*args: str, entrypoint: str | None = None) -> subprocess.CompletedProcess:
+def docker_run(
+    *args: str, entrypoint: str | None = None, timeout: int = 120
+) -> subprocess.CompletedProcess:
     cmd = ["docker", "run", "--rm", "--read-only", "--tmpfs", "/tmp"]
     if entrypoint:
         cmd += ["--entrypoint", entrypoint]
-    return subprocess.run([*cmd, IMAGE, *args], capture_output=True, text=True, timeout=120)
+    return subprocess.run([*cmd, IMAGE, *args], capture_output=True, text=True, timeout=timeout)
 
 
 def test_default_command_lists_every_consumer():
@@ -91,6 +93,7 @@ def test_dbt_parses_the_project_on_a_read_only_filesystem():
         "cd /app/transform && DBT_TARGET_PATH=/tmp/target DBT_LOG_PATH=/tmp/logs "
         "DBT_SEND_ANONYMOUS_USAGE_STATS=false dbt parse --profiles-dir .",
         entrypoint="sh",
+        timeout=300,  # a full parse of a cold project
     )
     assert result.returncode == 0, result.stdout + result.stderr
 

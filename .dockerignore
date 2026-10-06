@@ -1,4 +1,5 @@
-# Only pyproject.toml, uv.lock, README.md, src/, config/ and schemas/ are needed.
+# Only what the images need: the project, its configs, schemas, the dbt project and
+# the Airflow adapter.
 **
 !pyproject.toml
 !uv.lock
@@ -6,5 +7,10 @@
 !src/
 !config/
 !schemas/
+!transform/
+!orchestration/
+transform/target
+transform/logs
+transform/.user.yml
 **/__pycache__
 **/*.py[cod]
