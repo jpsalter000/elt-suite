@@ -25,6 +25,11 @@ env:
   UMBRELLA_CARTWHEEL_PASSWORD: umbrella-demo-password
   HOOLI_HELPLINE_KEY_ID: hooli-demo
   HOOLI_HELPLINE_SECRET: hooli-demo-signing-secret
+  VANDELAY_NS_ACCOUNT_ID: VANDELAY_SB1
+  VANDELAY_NS_CONSUMER_KEY: vandelay-demo-consumer-key
+  VANDELAY_NS_CONSUMER_SECRET: vandelay-demo-consumer-secret
+  VANDELAY_NS_TOKEN_ID: vandelay-demo-token-id
+  VANDELAY_NS_TOKEN_SECRET: vandelay-demo-token-secret
 
 jobs:
   checks:
@@ -53,6 +58,8 @@ jobs:
         run: uv run ruff format --check .
       - name: Pyright
         run: uv run pyright
+      # Includes the end-to-end utilization test: mock NetSuite -> Postgres -> dbt ->
+      # reporting views, checked against a Python oracle.
       - name: Pytest (unit + Postgres integration)
         run: uv run pytest -v -rs
 
@@ -88,7 +95,8 @@ jobs:
           nohup uv run elt-mock ticketdesk > ticketdesk.log 2>&1 &
           nohup uv run elt-mock cartwheel > cartwheel.log 2>&1 &
           nohup uv run elt-mock helpline > helpline.log 2>&1 &
-          for port in 8001 8002 8003 8004; do
+          nohup uv run elt-mock netsuite > netsuite.log 2>&1 &
+          for port in 8001 8002 8003 8004 8005; do
             timeout 60 bash -c "until curl -sf localhost:$port/docs > /dev/null; do sleep 1; done"
           done
       - name: Mock API pipelines (two runs each)
@@ -98,9 +106,22 @@ jobs:
             uv run elt run $consumer
             uv run elt run $consumer
           done
+      - name: Utilization pipeline (every NetSuite extract, then dbt build; twice)
+        run: |
+          uv run elt pipeline run utilization_daily
+          uv run elt pipeline run utilization_daily
       - name: Summarize runs
         run: |
           {
+            echo "### utilization_daily: reporting views"
+            echo '```'
+            psql "$WAREHOUSE_DSN" -c "SELECT group_name, week_start, round(avg(net_utilization_pct), 3) AS avg_net_utilization FROM reporting.rpt_utilization_weekly WHERE week_start >= '2026-08-02' GROUP BY 1, 2 ORDER BY 2, 1"
+            psql "$WAREHOUSE_DSN" -c "SELECT project_display_name, project_status_label, price, net_revenue, project_profit, project_profit_pct FROM reporting.rpt_project_margin ORDER BY price DESC LIMIT 10"
+            echo '```'
+            echo "### vandelay_netsuite._runs"
+            echo '```'
+            psql "$WAREHOUSE_DSN" -c "SELECT job, status, records_loaded, lower_bound, max_incremental_value FROM vandelay_netsuite._runs ORDER BY started_at"
+            echo '```'
             echo "### demo_usgs._runs"
             echo '```'
             psql "$WAREHOUSE_DSN" -c "SELECT job, status, records_loaded, lower_bound, max_incremental_value FROM demo_usgs._runs ORDER BY started_at"
@@ -141,14 +162,23 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - uses: docker/setup-buildx-action@v3
-      - name: Build
+      - name: Build the runtime image
         uses: docker/build-push-action@v6
         with:
           context: .
+          target: runtime
           load: true
           tags: elt-suite:test
           cache-from: type=gha
           cache-to: type=gha,mode=max
+      - name: Build the mocks image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: mocks
+          load: true
+          tags: elt-suite-mocks:test
+          cache-from: type=gha
       - uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
@@ -157,6 +187,26 @@ jobs:
         run: uv run pytest -m container -v -rs
         env:
           ELT_IMAGE: elt-suite:test
+          ELT_MOCKS_IMAGE: elt-suite-mocks:test
+
+  airflow:
+    name: Airflow adapter (tests run inside the Airflow image)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: docker/setup-buildx-action@v3
+      - name: Build the Airflow test image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: orchestration/airflow/Dockerfile
+          target: test
+          load: true
+          tags: elt-suite-airflow:test
+          cache-from: type=gha,scope=airflow
+          cache-to: type=gha,mode=max,scope=airflow
+      - name: Adapter tests
+        run: docker run --rm elt-suite-airflow:test
 
   # AWS jobs run only once the repository variables from the AWS setup guide exist
   # (AWS_PLAN_ROLE_ARN, AWS_APPLY_ROLE_ARN, TF_STATE_BUCKET); until then they skip.
@@ -203,7 +253,7 @@ jobs:
       github.event_name == 'push' &&
       github.ref == 'refs/heads/main' &&
       vars.AWS_APPLY_ROLE_ARN != ''
-    needs: [checks, terraform, image]
+    needs: [checks, terraform, image, airflow]
     runs-on: ubuntu-latest
     concurrency:
       group: deploy-dev
@@ -228,30 +278,56 @@ jobs:
         run: terraform init -input=false -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}"
       # The registry must exist before the image can be pushed, and the image must exist
       # before the task definition points at it: registry -> push -> everything else.
-      - name: Ensure the ECR repository exists
+      - name: Ensure the ECR repositories exist
         working-directory: infra/envs/dev
         run: |
           terraform apply -input=false -auto-approve -lock-timeout=120s \
-            -target=module.registry -var "image_tag=$IMAGE_TAG"
+            -target=module.registry -target=module.registry_airflow -target=module.registry_mocks \
+            -var "image_tag=$IMAGE_TAG"
           echo "REPOSITORY_URL=$(terraform output -raw ecr_repository_url)" >> "$GITHUB_ENV"
+          echo "AIRFLOW_REPOSITORY_URL=$(terraform output -raw airflow_repository_url)" >> "$GITHUB_ENV"
+          echo "MOCKS_REPOSITORY_URL=$(terraform output -raw mocks_repository_url)" >> "$GITHUB_ENV"
       - uses: aws-actions/amazon-ecr-login@v2
-      - name: Check whether this commit's image already exists
+      - name: Check which of this commit's images already exist
         id: existing
         run: |
-          name="${REPOSITORY_URL##*/}"
-          if aws ecr describe-images --repository-name "$name" --image-ids imageTag="$IMAGE_TAG" > /dev/null 2>&1; then
-            echo "found=true" >> "$GITHUB_OUTPUT"
-          fi
+          for image in runtime:$REPOSITORY_URL airflow:$AIRFLOW_REPOSITORY_URL mocks:$MOCKS_REPOSITORY_URL; do
+            key="${image%%:*}" url="${image#*:}"
+            if aws ecr describe-images --repository-name "${url##*/}" --image-ids imageTag="$IMAGE_TAG" > /dev/null 2>&1; then
+              echo "$key=true" >> "$GITHUB_OUTPUT"
+            fi
+          done
       - uses: docker/setup-buildx-action@v3
-        if: steps.existing.outputs.found != 'true'
-      - name: Build and push image (tags are immutable)
-        if: steps.existing.outputs.found != 'true'
+      - name: Build and push the runtime image (tags are immutable)
+        if: steps.existing.outputs.runtime != 'true'
         uses: docker/build-push-action@v6
         with:
           context: .
+          target: runtime
           push: true
           tags: ${{ env.REPOSITORY_URL }}:${{ env.IMAGE_TAG }}
           cache-from: type=gha
+          provenance: false
+      - name: Build and push the mocks image
+        if: steps.existing.outputs.mocks != 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: mocks
+          push: true
+          tags: ${{ env.MOCKS_REPOSITORY_URL }}:${{ env.IMAGE_TAG }}
+          cache-from: type=gha
+          provenance: false
+      - name: Build and push the Airflow image
+        if: steps.existing.outputs.airflow != 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: orchestration/airflow/Dockerfile
+          target: airflow
+          push: true
+          tags: ${{ env.AIRFLOW_REPOSITORY_URL }}:${{ env.IMAGE_TAG }}
+          cache-from: type=gha,scope=airflow
           provenance: false
       - name: Terraform apply
         working-directory: infra/envs/dev
