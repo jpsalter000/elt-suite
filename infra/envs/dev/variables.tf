@@ -24,3 +24,27 @@ variable "schedule_expression" {
   type        = string
   default     = null
 }
+
+variable "enable_airflow" {
+  description = "Run self-hosted Airflow (ADR 0003). When false, schedule_expression drives the runner instead."
+  type        = bool
+  default     = true
+}
+
+variable "airflow_desired_count" {
+  description = "1 runs Airflow; 0 pauses it without destroying anything."
+  type        = number
+  default     = 1
+}
+
+variable "airflow_capacity_provider" {
+  description = "FARGATE_SPOT (default, cheaper) or FARGATE."
+  type        = string
+  default     = "FARGATE_SPOT"
+}
+
+variable "mock_netsuite" {
+  description = "Run the NetSuite mock as a sidecar of the elt task (dev has no NetSuite account)."
+  type        = bool
+  default     = true
+}

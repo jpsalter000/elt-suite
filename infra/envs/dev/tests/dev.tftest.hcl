@@ -61,7 +61,8 @@ mock_provider "aws" {
   }
 }
 
-mock_provider "random" {}
+# The real random provider runs here (it needs no credentials): provider mocks
+# don't support the ephemeral random_password resources yet.
 
 variables {
   image_tag = "0123abcd"

@@ -36,7 +36,8 @@ mock_provider "aws" {
   }
 }
 
-mock_provider "random" {}
+# The real random provider runs here (it needs no credentials): provider mocks
+# don't support the ephemeral random_password resources yet.
 
 variables {
   name              = "elt-test-airflow"
@@ -232,7 +233,7 @@ run "airflow_can_only_run_the_elt_task_in_its_cluster" {
   assert {
     condition = anytrue([
       for s in jsondecode(aws_iam_role_policy.task.policy).Statement :
-      s.Action == "iam:PassRole" && toset(s.Resource) == toset([
+      s.Action == "iam:PassRole" && toset(flatten([s.Resource])) == toset([
         "arn:aws:iam::123456789012:role/elt-test-task-execution",
         "arn:aws:iam::123456789012:role/elt-test-task",
       ])
@@ -242,7 +243,7 @@ run "airflow_can_only_run_the_elt_task_in_its_cluster" {
   assert {
     condition = anytrue([
       for s in jsondecode(aws_iam_role_policy.task.policy).Statement :
-      toset(s.Action) == toset(["ecs:DescribeTasks", "ecs:StopTask"]) &&
+      toset(flatten([s.Action])) == toset(["ecs:DescribeTasks", "ecs:StopTask"]) &&
       s.Resource == "arn:aws:ecs:us-east-1:123456789012:task/elt-test/*"
     ])
     error_message = "Airflow may watch and stop only tasks in the elt cluster."
@@ -258,7 +259,7 @@ run "airflow_can_only_run_the_elt_task_in_its_cluster" {
   assert {
     condition = anytrue([
       for s in jsondecode(aws_iam_role_policy.task.policy).Statement :
-      contains(s.Action, "ssmmessages:OpenDataChannel")
+      contains(flatten([s.Action]), "ssmmessages:OpenDataChannel")
     ])
     error_message = "ECS Exec needs the SSM message channels."
   }
@@ -270,7 +271,7 @@ run "execution_role_reads_only_airflow_and_database_secrets" {
   assert {
     condition = anytrue([
       for s in jsondecode(aws_iam_role_policy.execution_secrets.policy).Statement :
-      s.Action == "secretsmanager:GetSecretValue" && toset(s.Resource) == toset([
+      s.Action == "secretsmanager:GetSecretValue" && toset(flatten([s.Resource])) == toset([
         "arn:aws:secretsmanager:us-east-1:123456789012:secret:elt-test/airflow-abc",
         "arn:aws:secretsmanager:us-east-1:123456789012:secret:rds!db-abc",
       ])

@@ -52,13 +52,25 @@ variable "command" {
 }
 
 variable "cpu" {
-  type    = string
-  default = "256"
+  description = "Task CPU units; dbt and a mock sidecar need 0.5 vCPU."
+  type        = string
+  default     = "512"
 }
 
 variable "memory" {
   type    = string
-  default = "512"
+  default = "1024"
+}
+
+variable "sidecars" {
+  description = "Extra non-essential containers (e.g. a mock source API) that elt waits on until healthy."
+  type = list(object({
+    name         = string
+    image        = string
+    command      = list(string)
+    health_check = list(string)
+  }))
+  default = []
 }
 
 variable "log_retention_days" {

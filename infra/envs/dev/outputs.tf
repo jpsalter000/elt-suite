@@ -39,3 +39,29 @@ output "run_task_network" {
     assign_public_ip = "ENABLED"
   }
 }
+
+output "airflow_repository_url" {
+  value = module.registry_airflow.repository_url
+}
+
+output "mocks_repository_url" {
+  value = module.registry_mocks.repository_url
+}
+
+output "scheduler" {
+  description = "What triggers pipelines: airflow, eventbridge or none."
+  value       = var.enable_airflow ? "airflow" : (var.schedule_expression == null ? "none" : "eventbridge")
+}
+
+output "netsuite_source" {
+  value = var.mock_netsuite ? "mock sidecar at ${local.mock_netsuite_url}" : "the consumer's configured base_url"
+}
+
+output "airflow_service_name" {
+  value = var.enable_airflow ? module.airflow[0].service_name : null
+}
+
+output "airflow_secret_arn" {
+  description = "Holds admin_password for the Airflow UI."
+  value       = var.enable_airflow ? module.airflow[0].secret_arn : null
+}

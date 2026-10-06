@@ -24,6 +24,17 @@ locals {
     var.environment,
   )
 
+  sidecar_dependencies = [for s in var.sidecars : { containerName = s.name, condition = "HEALTHY" }]
+
+  log_configuration = {
+    logDriver = "awslogs"
+    options = {
+      "awslogs-group"         = aws_cloudwatch_log_group.this.name
+      "awslogs-region"        = data.aws_region.current.region
+      "awslogs-stream-prefix" = local.container
+    }
+  }
+
   secrets = merge(
     {
       PGUSER     = "${var.database.secret_arn}:username::"
@@ -40,6 +51,12 @@ resource "aws_ecs_cluster" "this" {
     name  = "containerInsights"
     value = "disabled"
   }
+}
+
+# Fargate Spot lets long-running services such as Airflow run for less.
+resource "aws_ecs_cluster_capacity_providers" "this" {
+  cluster_name       = aws_ecs_cluster.this.name
+  capacity_providers = ["FARGATE", "FARGATE_SPOT"]
 }
 
 resource "aws_cloudwatch_log_group" "this" {
@@ -120,25 +137,42 @@ resource "aws_ecs_task_definition" "this" {
     name = "tmp"
   }
 
-  container_definitions = jsonencode([{
-    name                   = local.container
-    image                  = "${var.repository_url}:${var.image_tag}"
-    essential              = true
-    command                = var.command
-    user                   = "10001"
-    readonlyRootFilesystem = true
-    mountPoints            = [{ sourceVolume = "tmp", containerPath = "/tmp", readOnly = false }]
-    environment            = [for k in sort(keys(local.environment)) : { name = k, value = local.environment[k] }]
-    secrets                = [for k in sort(keys(local.secrets)) : { name = k, valueFrom = local.secrets[k] }]
-    logConfiguration = {
-      logDriver = "awslogs"
-      options = {
-        "awslogs-group"         = aws_cloudwatch_log_group.this.name
-        "awslogs-region"        = data.aws_region.current.region
-        "awslogs-stream-prefix" = local.container
+  container_definitions = jsonencode(concat(
+    [merge(
+      {
+        name                   = local.container
+        image                  = "${var.repository_url}:${var.image_tag}"
+        essential              = true
+        command                = var.command
+        user                   = "10001"
+        readonlyRootFilesystem = true
+        mountPoints            = [{ sourceVolume = "tmp", containerPath = "/tmp", readOnly = false }]
+        environment            = [for k in sort(keys(local.environment)) : { name = k, value = local.environment[k] }]
+        secrets                = [for k in sort(keys(local.secrets)) : { name = k, valueFrom = local.secrets[k] }]
+        logConfiguration       = local.log_configuration
+      },
+      # elt starts only once every sidecar reports healthy.
+    [for deps in [local.sidecar_dependencies] : { dependsOn = deps } if length(deps) > 0]...)],
+    # Sidecars (e.g. a mock source API) are non-essential: the task ends when elt
+    # exits, and stopping a sidecar never fails the run.
+    [for s in var.sidecars : {
+      name                   = s.name
+      image                  = s.image
+      essential              = false
+      command                = s.command
+      user                   = "10001"
+      readonlyRootFilesystem = true
+      mountPoints            = [{ sourceVolume = "tmp", containerPath = "/tmp", readOnly = false }]
+      healthCheck = {
+        command     = s.health_check
+        interval    = 10
+        timeout     = 5
+        retries     = 6
+        startPeriod = 15
       }
-    }
-  }])
+      logConfiguration = local.log_configuration
+    }],
+  ))
 }
 
 # --- optional schedule -------------------------------------------------------------------
