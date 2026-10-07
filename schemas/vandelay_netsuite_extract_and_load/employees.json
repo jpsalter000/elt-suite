@@ -1,0 +1,71 @@
+{
+  "consumer": "vandelay_netsuite_extract_and_load",
+  "job": "employees",
+  "primary_keys": [
+    "id"
+  ],
+  "incremental_key": "lastmodifieddate",
+  "generated_at": "2026-10-05T22:34:15+00:00",
+  "records_scanned": 40,
+  "fields": {
+    "id": {
+      "type": "string",
+      "nullable": false
+    },
+    "entityid": {
+      "type": "string",
+      "nullable": false
+    },
+    "firstname": {
+      "type": "string",
+      "nullable": false
+    },
+    "lastname": {
+      "type": "string",
+      "nullable": false
+    },
+    "email": {
+      "type": "string",
+      "nullable": false
+    },
+    "department": {
+      "type": "string",
+      "nullable": false
+    },
+    "title": {
+      "type": "string",
+      "nullable": false
+    },
+    "isinactive": {
+      "type": "string",
+      "nullable": false
+    },
+    "hiredate": {
+      "type": "string",
+      "nullable": false,
+      "format": "date"
+    },
+    "laborcost": {
+      "type": "string",
+      "nullable": false
+    },
+    "custentity_burdened_cost": {
+      "type": "string",
+      "nullable": false
+    },
+    "custentity_hours_per_day": {
+      "type": "string",
+      "nullable": false
+    },
+    "lastmodifieddate": {
+      "type": "string",
+      "nullable": false,
+      "format": "date-time"
+    },
+    "releasedate": {
+      "type": "string",
+      "nullable": true,
+      "format": "date"
+    }
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "consumer": "vandelay_netsuite_extract_and_load",
+  "job": "transaction_accounting_lines",
+  "primary_keys": [
+    "transaction",
+    "transactionline"
+  ],
+  "incremental_key": null,
+  "generated_at": "2026-10-05T22:34:40+00:00",
+  "records_scanned": 882,
+  "fields": {
+    "transaction": {
+      "type": "string",
+      "nullable": false
+    },
+    "transactionline": {
+      "type": "string",
+      "nullable": false
+    },
+    "account": {
+      "type": "string",
+      "nullable": false
+    },
+    "amount": {
+      "type": "string",
+      "nullable": false
+    },
+    "posting": {
+      "type": "string",
+      "nullable": false
+    }
+  }
+}

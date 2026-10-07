@@ -1,0 +1,25 @@
+version: 2
+
+sources:
+  - name: netsuite
+    description: Raw SuiteQL extracts loaded by elt-suite (all ids and numbers arrive as text).
+    schema: "{{ var('netsuite_schema') }}"
+    loaded_at_field: _loaded_at
+    freshness:
+      warn_after: {count: 36, period: hour}
+    tables:
+      - name: departments
+      - name: employees
+      - name: customers
+      - name: projects
+        description: SuiteQL "job" records.
+      - name: items
+      - name: time_entries
+        description: SuiteQL "timebill" records.
+      - name: transactions
+      - name: transaction_lines
+      - name: transaction_accounting_lines
+      - name: accounts
+      - name: _runs
+        description: One row per extract-and-load run (elt-suite's run log).
+        freshness: null

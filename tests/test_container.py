@@ -18,11 +18,13 @@ pytestmark = [
 ]
 
 
-def docker_run(*args: str, entrypoint: str | None = None) -> subprocess.CompletedProcess:
+def docker_run(
+    *args: str, entrypoint: str | None = None, timeout: int = 120
+) -> subprocess.CompletedProcess:
     cmd = ["docker", "run", "--rm", "--read-only", "--tmpfs", "/tmp"]
     if entrypoint:
         cmd += ["--entrypoint", entrypoint]
-    return subprocess.run([*cmd, IMAGE, *args], capture_output=True, text=True, timeout=120)
+    return subprocess.run([*cmd, IMAGE, *args], capture_output=True, text=True, timeout=timeout)
 
 
 def test_default_command_lists_every_consumer():
@@ -69,3 +71,50 @@ def test_missing_warehouse_is_reported_clearly():
     result = docker_run("run", "demo_usgs_extract_and_load", "--job", "earthquakes")
     assert result.returncode == 1
     assert "WAREHOUSE_DSN is not set" in result.stderr
+
+
+# --- pipelines and dbt -------------------------------------------------------------------
+
+
+def test_pipelines_and_the_dbt_project_ship_with_the_image():
+    result = docker_run("pipeline", "list")
+    assert result.returncode == 0, result.stderr
+    assert "utilization_daily" in result.stdout
+    shown = docker_run("pipeline", "show", "utilization_daily", "--json")
+    assert '"version": 1' in shown.stdout
+    files = docker_run("/app/transform", entrypoint="ls").stdout.split()
+    assert {"dbt_project.yml", "profiles.yml", "models", "seeds"} <= set(files)
+    assert not {"target", "logs"} & set(files)
+
+
+def test_dbt_parses_the_project_on_a_read_only_filesystem():
+    result = docker_run(
+        "-c",
+        "cd /app/transform && DBT_TARGET_PATH=/tmp/target DBT_LOG_PATH=/tmp/logs "
+        "DBT_SEND_ANONYMOUS_USAGE_STATS=false dbt parse --profiles-dir .",
+        entrypoint="sh",
+        timeout=300,  # a full parse of a cold project
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_a_dbt_task_without_a_warehouse_fails_with_the_reason():
+    result = docker_run("pipeline", "run-task", "utilization_daily", "transform")
+    assert result.returncode == 1
+    assert "WAREHOUSE_DSN is not set" in result.stdout + result.stderr
+
+
+MOCKS_IMAGE = os.environ.get("ELT_MOCKS_IMAGE")
+
+
+@pytest.mark.skipif(not MOCKS_IMAGE, reason="ELT_MOCKS_IMAGE not built")
+def test_the_mocks_image_serves_the_mock_apis_as_non_root():
+    cmd = ["docker", "run", "--rm", "--read-only", "--tmpfs", "/tmp", MOCKS_IMAGE, "--help"]
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+    assert result.returncode == 0, result.stderr
+    assert "netsuite" in result.stdout
+    user = subprocess.run(
+        ["docker", "run", "--rm", "--entrypoint", "id", MOCKS_IMAGE, "-u"],
+        capture_output=True, text=True, timeout=120,
+    )  # fmt: skip
+    assert user.stdout.strip() == "10001"

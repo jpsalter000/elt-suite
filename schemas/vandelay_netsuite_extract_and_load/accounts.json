@@ -1,0 +1,32 @@
+{
+  "consumer": "vandelay_netsuite_extract_and_load",
+  "job": "accounts",
+  "primary_keys": [
+    "id"
+  ],
+  "incremental_key": null,
+  "generated_at": "2026-10-05T22:34:42+00:00",
+  "records_scanned": 13,
+  "fields": {
+    "id": {
+      "type": "string",
+      "nullable": false
+    },
+    "acctnumber": {
+      "type": "string",
+      "nullable": true
+    },
+    "fullname": {
+      "type": "string",
+      "nullable": false
+    },
+    "accttype": {
+      "type": "string",
+      "nullable": false
+    },
+    "isinactive": {
+      "type": "string",
+      "nullable": false
+    }
+  }
+}

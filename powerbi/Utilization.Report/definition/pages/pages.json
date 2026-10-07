@@ -1,0 +1,11 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/pagesMetadata/1.0.0/schema.json",
+  "pageOrder": [
+    "main_report",
+    "time_to_clients",
+    "tasks_by_person",
+    "persons_by_task",
+    "project_margin"
+  ],
+  "activePageName": "main_report"
+}

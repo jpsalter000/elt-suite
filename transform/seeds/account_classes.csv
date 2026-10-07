@@ -1,0 +1,9 @@
+account_number,account_class,note
+32000,excluded,Opening balances are not project activity
+40000,revenue,Research revenue
+40110,pass_through_travel,Travel billed to the client at cost
+40120,pass_through_incentive,Respondent incentives billed to the client at cost
+50100,field_cost,COG research services
+50200,field_cost,COG field services
+50300,incentive_cost,COG respondent incentives
+50400,travel_cost,COG travel

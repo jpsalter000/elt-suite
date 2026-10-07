@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# Prints Airflow's metadata database URL, `sync` (default) or `async`, built from
+#   AIRFLOW_DB_HOST, AIRFLOW_DB_PORT (5432), AIRFLOW_DB_NAME (airflow),
+#   AIRFLOW_DB_USER (airflow), AIRFLOW_DB_PASSWORD, AIRFLOW_DB_SSLMODE (prefer)
+# with the user and password URL-encoded. Airflow runs it through
+# sql_alchemy_conn_cmd / sql_alchemy_conn_async_cmd, so every airflow process,
+# including `docker exec` and ECS Exec sessions, connects the same way.
+# Without AIRFLOW_DB_HOST it prints Airflow's default SQLite database.
+set -euo pipefail
+
+mode="${1:-sync}"
+if [[ -z "${AIRFLOW_DB_HOST:-}" ]]; then
+  db="${AIRFLOW_HOME:-/opt/airflow}/airflow.db"
+  if [[ "${mode}" == "async" ]]; then echo "sqlite+aiosqlite:///${db}"; else echo "sqlite:///${db}"; fi
+  exit 0
+fi
+
+exec python - "${mode}" <<'PY'
+import os
+import sys
+from urllib.parse import quote
+
+env = os.environ
+user = quote(env.get("AIRFLOW_DB_USER", "airflow"), safe="")
+password = quote(env["AIRFLOW_DB_PASSWORD"], safe="")
+location = f"{env['AIRFLOW_DB_HOST']}:{env.get('AIRFLOW_DB_PORT', '5432')}/{env.get('AIRFLOW_DB_NAME', 'airflow')}"
+sslmode = env.get("AIRFLOW_DB_SSLMODE", "prefer")
+if sys.argv[1] == "async":
+    # asyncpg spells it ssl=, not sslmode=.
+    print(f"postgresql+asyncpg://{user}:{password}@{location}?ssl={sslmode}")
+else:
+    print(f"postgresql+psycopg2://{user}:{password}@{location}?sslmode={sslmode}")
+PY

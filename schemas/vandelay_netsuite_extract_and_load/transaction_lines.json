@@ -1,0 +1,45 @@
+{
+  "consumer": "vandelay_netsuite_extract_and_load",
+  "job": "transaction_lines",
+  "primary_keys": [
+    "transaction",
+    "id"
+  ],
+  "incremental_key": null,
+  "generated_at": "2026-10-05T22:34:38+00:00",
+  "records_scanned": 882,
+  "fields": {
+    "transaction": {
+      "type": "string",
+      "nullable": false
+    },
+    "id": {
+      "type": "string",
+      "nullable": false
+    },
+    "linesequencenumber": {
+      "type": "string",
+      "nullable": false
+    },
+    "mainline": {
+      "type": "string",
+      "nullable": false
+    },
+    "entity": {
+      "type": "string",
+      "nullable": false
+    },
+    "foreignamount": {
+      "type": "string",
+      "nullable": false
+    },
+    "item": {
+      "type": "string",
+      "nullable": true
+    },
+    "memo": {
+      "type": "string",
+      "nullable": true
+    }
+  }
+}

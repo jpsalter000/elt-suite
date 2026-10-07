@@ -20,6 +20,14 @@ def consumers_dir() -> Path:
     return config_dir() / "consumers"
 
 
+def pipelines_dir() -> Path:
+    return config_dir() / "pipelines"
+
+
+def dbt_project_dir() -> Path:
+    return home() / "transform"
+
+
 def destinations_file() -> Path:
     return config_dir() / "destinations.json"
 

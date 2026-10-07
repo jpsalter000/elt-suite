@@ -1,0 +1,59 @@
+table 'Employee Capacity'
+	lineageTag: 18f21ccd-d208-5ab7-b33d-8553199d50f1
+
+	column 'Employee ID'
+		dataType: int64
+		formatString: 0
+		isHidden
+		lineageTag: 2dd1c0e2-f0a8-5d6f-bd88-6b289d8de305
+		summarizeBy: none
+		sourceColumn: employee_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column Date
+		dataType: dateTime
+		formatString: Short Date
+		lineageTag: a656104e-01fe-537e-92e5-8572124557a2
+		summarizeBy: none
+		sourceColumn: date_day
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Standard Hours'
+		dataType: double
+		formatString: #,0.00
+		lineageTag: 05be25ed-6f96-50b5-bc15-9e6bf496a3c2
+		summarizeBy: none
+		sourceColumn: standard_hours
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Exempt Hours'
+		dataType: double
+		formatString: #,0.00
+		lineageTag: 3d744524-a518-5bdf-a38d-3c6625821cec
+		summarizeBy: none
+		sourceColumn: exempt_hours
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Expected Hours'
+		dataType: double
+		formatString: #,0.00
+		lineageTag: 5cb80985-a33d-5459-9e13-d71ab710101d
+		summarizeBy: none
+		sourceColumn: expected_hours
+
+		annotation SummarizationSetBy = Automatic
+
+	partition 'Employee Capacity' = m
+		mode: import
+		source =
+				let
+				    Source = PostgreSQL.Database(Server, Database),
+				    Data = Source{[Schema = "reporting", Item = "fct_employee_capacity"]}[Data]
+				in
+				    Data
+
+	annotation PBI_ResultType = Table

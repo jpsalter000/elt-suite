@@ -5,6 +5,8 @@ description = "Config-driven extract-and-load framework with schema inference an
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "dbt-core>=1.12,<2",
+    "dbt-postgres>=1.10",
     "httpx>=0.27",
     "psycopg[binary]>=3.2",
     "pydantic>=2.8",
@@ -18,6 +20,7 @@ elt-mock = "mock_apis.cli:main"
 
 [dependency-groups]
 dev = [
+    "jsonschema>=4.23",
     "pyright>=1.1.414",
     "pytest>=8.3",
     "ruff>=0.6",
@@ -53,7 +56,7 @@ target-version = "py312"
 select = ["E", "F", "I", "B", "UP", "SIM"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["elt_suite", "consumers", "mock_apis", "conftest"]
+known-first-party = ["elt_suite", "consumers", "mock_apis", "conftest", "elt_airflow"]
 
 [tool.pyright]
 include = ["src"]

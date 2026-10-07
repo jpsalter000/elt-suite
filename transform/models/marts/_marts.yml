@@ -1,0 +1,31 @@
+version: 2
+
+# Conformed dimensions and facts, including per-person cost rates. The reporting
+# schema re-exposes these without rates for Power BI.
+
+models:
+  - name: dim_date
+    columns:
+      - {name: date_day, data_tests: [unique, not_null]}
+  - name: dim_employee
+    columns:
+      - {name: employee_id, data_tests: [unique, not_null]}
+  - name: dim_client
+    columns:
+      - {name: client_id, data_tests: [unique, not_null]}
+  - name: dim_project
+    columns:
+      - {name: project_id, data_tests: [unique, not_null]}
+  - name: dim_item
+    columns:
+      - {name: item_id, data_tests: [unique, not_null]}
+  - name: fct_time_entries
+    columns:
+      - {name: time_entry_id, data_tests: [unique, not_null]}
+  - name: fct_employee_capacity
+    data_tests:
+      - unique_combination_of_columns: {arguments: {combination: [employee_id, date_day]}}
+  - name: fct_project_financials
+    description: Project transaction lines with their margin contributions and exclusion reasons.
+    data_tests:
+      - unique_combination_of_columns: {arguments: {combination: [transaction_id, line_id]}}

@@ -1,0 +1,20 @@
+{
+  "name": "utilization_daily",
+  "description": "Daily NetSuite extract for Vandelay, then the dbt build that refreshes the utilization and project-margin reporting views.",
+  "schedule": "0 6 * * *",
+  "steps": [
+    {
+      "id": "extract_netsuite",
+      "type": "extract_load",
+      "consumer": "vandelay_netsuite_extract_and_load"
+    },
+    {
+      "id": "transform",
+      "type": "dbt",
+      "command": "build",
+      "depends_on": [
+        "extract_netsuite"
+      ]
+    }
+  ]
+}

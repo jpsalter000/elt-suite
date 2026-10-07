@@ -1,0 +1,22 @@
+[project]
+name = "elt-airflow"
+version = "0.1.0"
+description = "Airflow adapter for elt-suite: one DAG per exported pipeline graph."
+requires-python = ">=3.12"
+# Installed into the official Airflow image with Airflow's constraints file; the
+# adapter needs only Airflow and these providers, never elt_suite itself.
+dependencies = [
+    "apache-airflow>=3.1",
+    "apache-airflow-providers-amazon",
+    "apache-airflow-providers-standard",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/elt_airflow"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

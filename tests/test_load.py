@@ -192,3 +192,45 @@ def test_postgres_end_to_end(inferred, fake_client):
         (second.run_id, "succeeded", 2, "2024-03-01 12:00:00", "2024-05-01 00:00:00"),
         (third.run_id, "succeeded", 4, "2024-01-01 00:00:00", "2024-05-01 00:00:00"),
     ]
+
+
+@pytest.mark.integration
+@pytest.mark.skipif(not os.environ.get("WAREHOUSE_DSN"), reason="WAREHOUSE_DSN not set")
+def test_parallel_loads_can_create_the_same_schema_and_tables():
+    """Pipelines run one task per job in parallel; all of them create <schema>._runs."""
+    import threading
+
+    import psycopg
+
+    from elt_suite.load.ddl import Column
+    from elt_suite.load.postgres import PostgresDestination
+
+    dsn = os.environ["WAREHOUSE_DSN"]
+    columns = [Column("id", "BIGINT", nullable=False), Column("name", "TEXT")]
+    errors: list[BaseException] = []
+
+    for _ in range(5):
+        with psycopg.connect(dsn, autocommit=True) as conn:
+            conn.execute("DROP SCHEMA IF EXISTS demo_parallel CASCADE")
+        destinations = [PostgresDestination(dsn) for _ in range(8)]
+        barrier = threading.Barrier(len(destinations))
+
+        def create(dest, table, barrier=barrier):
+            try:
+                barrier.wait()
+                dest.ensure_table("demo_parallel", table, columns, ["id"])
+            except BaseException as exc:  # collected and asserted below
+                errors.append(exc)
+
+        threads = [
+            threading.Thread(target=create, args=(d, f"t{i % 2}"))
+            for i, d in enumerate(destinations)
+        ]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+        for d in destinations:
+            d.close()
+
+    assert errors == []

@@ -1,0 +1,213 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.4.0/schema.json",
+  "name": "margin_table",
+  "position": {
+    "x": 16,
+    "y": 112,
+    "z": 0,
+    "width": 1248,
+    "height": 592
+  },
+  "visual": {
+    "visualType": "tableEx",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Project Margin"
+                    }
+                  },
+                  "Property": "Department Name"
+                }
+              },
+              "queryRef": "Project Margin.Department Name",
+              "nativeQueryRef": "Department Name"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Project Margin"
+                    }
+                  },
+                  "Property": "Project Lead"
+                }
+              },
+              "queryRef": "Project Margin.Project Lead",
+              "nativeQueryRef": "Project Lead"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Project Margin"
+                    }
+                  },
+                  "Property": "Client Name"
+                }
+              },
+              "queryRef": "Project Margin.Client Name",
+              "nativeQueryRef": "Client Name"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Project Margin"
+                    }
+                  },
+                  "Property": "Project Display Name"
+                }
+              },
+              "queryRef": "Project Margin.Project Display Name",
+              "nativeQueryRef": "Project Display Name"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Project Margin"
+                    }
+                  },
+                  "Property": "Project Status Label"
+                }
+              },
+              "queryRef": "Project Margin.Project Status Label",
+              "nativeQueryRef": "Project Status Label"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Project Margin"
+                    }
+                  },
+                  "Property": "Total Hours"
+                }
+              },
+              "queryRef": "Project Margin.Total Hours",
+              "nativeQueryRef": "Total Hours"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Project Margin"
+                    }
+                  },
+                  "Property": "Price"
+                }
+              },
+              "queryRef": "Project Margin.Price",
+              "nativeQueryRef": "Price"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Project Margin"
+                    }
+                  },
+                  "Property": "Travel Cost"
+                }
+              },
+              "queryRef": "Project Margin.Travel Cost",
+              "nativeQueryRef": "Travel Cost"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Project Margin"
+                    }
+                  },
+                  "Property": "Incentive Cost"
+                }
+              },
+              "queryRef": "Project Margin.Incentive Cost",
+              "nativeQueryRef": "Incentive Cost"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Project Margin"
+                    }
+                  },
+                  "Property": "Field Cost"
+                }
+              },
+              "queryRef": "Project Margin.Field Cost",
+              "nativeQueryRef": "Field Cost"
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Measures"
+                    }
+                  },
+                  "Property": "Project Profit %"
+                }
+              },
+              "queryRef": "Measures.Project Profit %",
+              "nativeQueryRef": "Project Profit %"
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Measures"
+                    }
+                  },
+                  "Property": "Contribution Margin %"
+                }
+              },
+              "queryRef": "Measures.Contribution Margin %",
+              "nativeQueryRef": "Contribution Margin %"
+            }
+          ]
+        }
+      }
+    },
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
+                }
+              }
+            },
+            "text": {
+              "expr": {
+                "Literal": {
+                  "Value": "'Projects'"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "drillFilterOtherVisuals": true
+  }
+}

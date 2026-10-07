@@ -9,6 +9,7 @@ list describing each dataset to extract.
 from __future__ import annotations
 
 import json
+import os
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Literal
@@ -20,6 +21,7 @@ from elt_suite import paths
 CONSUMER_SUFFIX = "_extract_and_load"
 EPOCH = "epoch"  # datetime_format for unix-second timestamps
 IDENTIFIER = r"^[a-z][a-z0-9_]*$"
+ENV_VAR = r"^[A-Z_][A-Z0-9_]*$"
 
 
 class ConfigError(Exception):
@@ -98,6 +100,11 @@ class ConsumerConfig(_Strict):
     company: str = Field(pattern=IDENTIFIER)
     source_system: str = Field(pattern=IDENTIFIER)
     base_url: str
+    base_url_env: str | None = Field(
+        default=None,
+        pattern=ENV_VAR,
+        description="Environment variable that, when set, overrides base_url (e.g. a mock).",
+    )
     credentials: dict[str, str] = Field(
         default_factory=dict,
         description="Logical credential name -> environment variable holding the value.",
@@ -119,6 +126,12 @@ class ConsumerConfig(_Strict):
     @property
     def name(self) -> str:
         return f"{self.company}_{self.source_system}{CONSUMER_SUFFIX}"
+
+    @property
+    def effective_base_url(self) -> str:
+        """``base_url``, unless ``base_url_env`` names a non-empty environment variable."""
+        override = os.environ.get(self.base_url_env) if self.base_url_env else None
+        return override or self.base_url
 
     def job(self, name: str) -> JobConfig:
         for job in self.jobs:

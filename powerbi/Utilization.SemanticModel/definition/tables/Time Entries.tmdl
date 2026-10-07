@@ -1,0 +1,161 @@
+table 'Time Entries'
+	lineageTag: 9c8ca330-d79a-5361-a49e-37317dd72db4
+
+	column 'Time Entry ID'
+		dataType: int64
+		formatString: 0
+		isHidden
+		lineageTag: f68b5b9b-f9ac-5433-942a-db56a1ca5c62
+		summarizeBy: none
+		sourceColumn: time_entry_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Entry Date'
+		dataType: dateTime
+		formatString: Short Date
+		lineageTag: 310b3d8f-9dc4-5215-9e7e-80aa72b4bbfc
+		summarizeBy: none
+		sourceColumn: entry_date
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Employee ID'
+		dataType: int64
+		formatString: 0
+		isHidden
+		lineageTag: 056a3c8a-1c85-5220-b6c9-efd7596125ac
+		summarizeBy: none
+		sourceColumn: employee_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Item ID'
+		dataType: int64
+		formatString: 0
+		isHidden
+		lineageTag: 72fd7f51-8d59-5e1a-9cde-fa5dd35d7591
+		summarizeBy: none
+		sourceColumn: item_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Project ID'
+		dataType: int64
+		formatString: 0
+		isHidden
+		lineageTag: 22127b35-ab28-5306-a30f-3b692e23c377
+		summarizeBy: none
+		sourceColumn: project_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Client ID'
+		dataType: int64
+		formatString: 0
+		isHidden
+		lineageTag: e75f304c-d9a2-516a-8ebe-c7b8dc267e79
+		summarizeBy: none
+		sourceColumn: client_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column Hours
+		dataType: double
+		formatString: #,0.00
+		lineageTag: 274b9059-5ae5-5b7d-a3ab-8cb5d6aee3c5
+		summarizeBy: none
+		sourceColumn: hours
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Worked Hours'
+		dataType: double
+		formatString: #,0.00
+		lineageTag: ef947245-948e-5f55-99f9-9cc3a3d975bd
+		summarizeBy: none
+		sourceColumn: worked_hours
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Client Facing Hours'
+		dataType: double
+		formatString: #,0.00
+		lineageTag: e9cc459c-e27d-5c44-af3e-fa87ab01dc46
+		summarizeBy: none
+		sourceColumn: client_facing_hours
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Project Work Hours'
+		dataType: double
+		formatString: #,0.00
+		lineageTag: 6c96192f-2c2c-5351-b561-afd5f011ad36
+		summarizeBy: none
+		sourceColumn: project_work_hours
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Client BD Hours'
+		dataType: double
+		formatString: #,0.00
+		lineageTag: 1885fab0-9885-5a88-98e9-3e5ac99bf78f
+		summarizeBy: none
+		sourceColumn: client_bd_hours
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Internal Productive Hours'
+		dataType: double
+		formatString: #,0.00
+		lineageTag: 188340ad-95b9-50bf-9b5d-d6065483235b
+		summarizeBy: none
+		sourceColumn: internal_productive_hours
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Internal Admin Hours'
+		dataType: double
+		formatString: #,0.00
+		lineageTag: d97f97da-a20a-5300-9d85-686f47b50a9b
+		summarizeBy: none
+		sourceColumn: internal_admin_hours
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Exempt Hours'
+		dataType: double
+		formatString: #,0.00
+		lineageTag: 628b2d39-3e19-5a0c-a11c-0a1ed0d3076e
+		summarizeBy: none
+		sourceColumn: exempt_hours
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Unmapped Hours'
+		dataType: double
+		formatString: #,0.00
+		lineageTag: 20769f34-4369-513b-a112-549924554bb9
+		summarizeBy: none
+		sourceColumn: unmapped_hours
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Is Billable'
+		dataType: boolean
+		lineageTag: 20d585f9-01e7-5f98-ae5e-d527dbcb0047
+		summarizeBy: none
+		sourceColumn: is_billable
+
+		annotation SummarizationSetBy = Automatic
+
+	partition 'Time Entries' = m
+		mode: import
+		source =
+				let
+				    Source = PostgreSQL.Database(Server, Database),
+				    Data = Source{[Schema = "reporting", Item = "fct_time_entries"]}[Data]
+				in
+				    Data
+
+	annotation PBI_ResultType = Table

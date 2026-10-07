@@ -1,0 +1,124 @@
+table Measures
+	lineageTag: b2a7f729-7116-5a2a-a3be-325f5c1daebd
+
+	measure 'Total Hours' = SUM('Time Entries'[Hours])
+		formatString: #,0.0
+		displayFolder: Hours
+		description: All logged hours, including exempt and unmapped time.
+		lineageTag: 261e946b-a2a6-5a37-91b8-8229265014ef
+
+	measure 'Worked Hours' = SUM('Time Entries'[Worked Hours])
+		formatString: #,0.0
+		displayFolder: Hours
+		description: Hours in categories that count as worked (everything but exempt and unmapped).
+		lineageTag: 823d59c5-2256-5fe0-a3f3-95be0bf9ba46
+
+	measure 'Client Hours' = SUM('Time Entries'[Client Facing Hours])
+		formatString: #,0.0
+		displayFolder: Hours
+		description: Project work plus client business development.
+		lineageTag: 00c2c2c4-fcdf-5000-bcce-37f1b2701761
+
+	measure 'Exempt Hours' = SUM('Time Entries'[Exempt Hours])
+		formatString: #,0.0
+		displayFolder: Hours
+		description: Holidays, PTO and other leave.
+		lineageTag: 68544f81-ddb8-51f8-947c-1189e53ab2c1
+
+	measure 'Expected Hours' = SUM('Employee Capacity'[Expected Hours])
+		formatString: #,0.0
+		displayFolder: Hours
+		description: Weekday standard hours minus exempt time, never below zero, while employed.
+		lineageTag: 2cff88d4-3173-53cb-ad3d-32ebf92ed7f4
+
+	measure 'Standard Hours' = SUM('Employee Capacity'[Standard Hours])
+		formatString: #,0.0
+		displayFolder: Hours
+		description: Weekday standard hours while employed.
+		lineageTag: 87093a49-9dd6-5145-9bfa-dc0feae5f652
+
+	measure 'Net Utilization %' = DIVIDE([Worked Hours], [Expected Hours])
+		formatString: 0.0%
+		displayFolder: Utilization
+		description: Worked over expected hours (the workbook's Actual over Expected).
+		lineageTag: 1274d93f-3ec6-5b5e-998e-d50c2b411484
+
+	measure 'Project Work %' = DIVIDE(SUM('Time Entries'[Project Work Hours]), [Expected Hours])
+		formatString: 0.0%
+		displayFolder: Utilization
+		description: Project work over expected hours.
+		lineageTag: 2ab5dfc8-759a-5c1b-b044-254c422cdbf2
+
+	measure 'Client BD %' = DIVIDE(SUM('Time Entries'[Client BD Hours]), [Expected Hours])
+		formatString: 0.0%
+		displayFolder: Utilization
+		description: Client business development over expected hours.
+		lineageTag: 1b7f00ef-eecf-5455-9dca-ef20e7405fdd
+
+	measure 'Internal %' = DIVIDE(SUM('Time Entries'[Internal Productive Hours]) + SUM('Time Entries'[Internal Admin Hours]), [Expected Hours])
+		formatString: 0.0%
+		displayFolder: Utilization
+		description: Internal productive and admin time over expected hours.
+		lineageTag: 7bb07cff-48de-53ed-b012-ec8e636c984a
+
+	measure 'Exempt %' = DIVIDE([Exempt Hours], [Standard Hours])
+		formatString: 0.0%
+		displayFolder: Utilization
+		description: Exempt time over standard hours.
+		lineageTag: f71d87ad-b628-5db4-8405-d0abc07f0cd1
+
+	measure 'Client Rank' = IF(ISINSCOPE(Client[Client Name]), RANKX(ALLSELECTED(Client[Client Name]), [Client Hours]))
+		formatString: 0
+		displayFolder: Clients
+		description: Rank by client hours in the current filters (was the Top-15 macro).
+		lineageTag: 2d0b6703-3970-54f8-bf51-706690e95c25
+
+	measure Price = SUM('Project Margin'[Price])
+		formatString: \$#,0
+		displayFolder: Projects
+		description: Invoices and credit memos for finalized or closed projects, otherwise sales orders.
+		lineageTag: 0ca27a25-7703-5007-8ffb-c57da805b109
+
+	measure 'Net Revenue' = SUM('Project Margin'[Net Revenue])
+		formatString: \$#,0
+		displayFolder: Projects
+		description: Price minus pass-through travel and incentive revenue.
+		lineageTag: 27d960ed-7b24-5c46-a8e5-11a2781e6b3f
+
+	measure 'Project Profit' = SUM('Project Margin'[Project Profit])
+		formatString: \$#,0
+		displayFolder: Projects
+		description: Price minus field, incentive and travel costs and time cost.
+		lineageTag: d6f12abd-c689-579a-8018-0168c2ef3711
+
+	measure 'Project Profit %' = DIVIDE([Project Profit], [Net Revenue])
+		formatString: 0.0%
+		displayFolder: Projects
+		description: Profit over net revenue.
+		lineageTag: 0031d74e-9cf8-506e-a25d-14afda2cd340
+
+	measure 'Contribution Margin' = SUM('Project Margin'[Contribution Margin])
+		formatString: \$#,0
+		displayFolder: Projects
+		description: Profit using the burdened (CB) cost rate.
+		lineageTag: 3da6929a-adf2-5fc8-9f9b-8f16ca8a0bfe
+
+	measure 'Contribution Margin %' = DIVIDE([Contribution Margin], [Net Revenue])
+		formatString: 0.0%
+		displayFolder: Projects
+		description: Contribution margin over net revenue.
+		lineageTag: 7d044c40-ea1f-50d1-a6b2-a6d9ecacd3fd
+
+	column Value
+		dataType: int64
+		isHidden
+		isNameInferred
+		lineageTag: 06c4b8a2-c32a-58c9-9ec9-79d85377adfb
+		summarizeBy: none
+		sourceColumn: [Value]
+
+	partition Measures = calculated
+		mode: import
+		source = ROW("Value", 0)
+
+	annotation PBI_Id = b575bf7ad77c58c7a3adc47f0c14a5ba

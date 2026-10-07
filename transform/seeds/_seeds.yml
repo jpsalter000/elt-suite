@@ -1,0 +1,31 @@
+version: 2
+
+seeds:
+  - name: time_categories
+    description: >
+      Maps each NetSuite time item to a utilization category. This replaces the
+      workbook's "Task Type Breakdown" table. counts_as_worked drives Net
+      Utilization; is_client_facing drives client hours and the top-client ranking.
+    columns:
+      - name: item_name
+        data_tests: [unique, not_null]
+      - name: category_code
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [project_work, client_bd, internal_productive, internal_admin, exempt]
+  - name: account_classes
+    description: Classes the GL accounts used by the project-margin rules.
+    columns:
+      - name: account_number
+        data_tests: [unique, not_null]
+      - name: account_class
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [excluded, revenue, pass_through_travel, pass_through_incentive, field_cost, incentive_cost, travel_cost]
+  - name: department_groups
+    description: Rolls departments up to reporting groups (the workbook's Group column).
+    columns:
+      - name: department_name
+        data_tests: [unique, not_null]

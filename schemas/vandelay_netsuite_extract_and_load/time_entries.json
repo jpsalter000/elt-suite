@@ -1,0 +1,54 @@
+{
+  "consumer": "vandelay_netsuite_extract_and_load",
+  "job": "time_entries",
+  "primary_keys": [
+    "id"
+  ],
+  "incremental_key": "lastmodifieddate",
+  "generated_at": "2026-10-05T22:34:33+00:00",
+  "records_scanned": 14511,
+  "fields": {
+    "id": {
+      "type": "string",
+      "nullable": false
+    },
+    "employee": {
+      "type": "string",
+      "nullable": false
+    },
+    "trandate": {
+      "type": "string",
+      "nullable": false,
+      "format": "date"
+    },
+    "hours": {
+      "type": "string",
+      "nullable": false
+    },
+    "item": {
+      "type": "string",
+      "nullable": false
+    },
+    "department": {
+      "type": "string",
+      "nullable": false
+    },
+    "isbillable": {
+      "type": "string",
+      "nullable": false
+    },
+    "lastmodifieddate": {
+      "type": "string",
+      "nullable": false,
+      "format": "date-time"
+    },
+    "memo": {
+      "type": "string",
+      "nullable": true
+    },
+    "customer": {
+      "type": "string",
+      "nullable": true
+    }
+  }
+}

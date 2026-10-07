@@ -1,0 +1,107 @@
+{
+  "company": "vandelay",
+  "source_system": "netsuite",
+  "base_url": "http://localhost:8005",
+  "base_url_env": "VANDELAY_NS_BASE_URL",
+  "credentials": {
+    "account_id": "VANDELAY_NS_ACCOUNT_ID",
+    "consumer_key": "VANDELAY_NS_CONSUMER_KEY",
+    "consumer_secret": "VANDELAY_NS_CONSUMER_SECRET",
+    "token_id": "VANDELAY_NS_TOKEN_ID",
+    "token_secret": "VANDELAY_NS_TOKEN_SECRET"
+  },
+  "destination": "warehouse",
+  "target_schema": "vandelay_netsuite",
+  "extra": {
+    "page_size": 1000
+  },
+  "jobs": [
+    {
+      "name": "departments",
+      "primary_keys": [
+        "id"
+      ]
+    },
+    {
+      "name": "employees",
+      "primary_keys": [
+        "id"
+      ],
+      "incremental_loading": {
+        "incremental_key": "lastmodifieddate",
+        "lower_bound": "2015-01-01 00:00:00",
+        "datetime_format": "%Y-%m-%d %H:%M:%S"
+      }
+    },
+    {
+      "name": "customers",
+      "primary_keys": [
+        "id"
+      ],
+      "incremental_loading": {
+        "incremental_key": "lastmodifieddate",
+        "lower_bound": "2015-01-01 00:00:00",
+        "datetime_format": "%Y-%m-%d %H:%M:%S"
+      }
+    },
+    {
+      "name": "projects",
+      "primary_keys": [
+        "id"
+      ],
+      "incremental_loading": {
+        "incremental_key": "lastmodifieddate",
+        "lower_bound": "2015-01-01 00:00:00",
+        "datetime_format": "%Y-%m-%d %H:%M:%S"
+      }
+    },
+    {
+      "name": "items",
+      "primary_keys": [
+        "id"
+      ]
+    },
+    {
+      "name": "time_entries",
+      "primary_keys": [
+        "id"
+      ],
+      "incremental_loading": {
+        "incremental_key": "lastmodifieddate",
+        "lower_bound": "2015-01-01 00:00:00",
+        "datetime_format": "%Y-%m-%d %H:%M:%S"
+      }
+    },
+    {
+      "name": "transactions",
+      "primary_keys": [
+        "id"
+      ],
+      "incremental_loading": {
+        "incremental_key": "lastmodifieddate",
+        "lower_bound": "2015-01-01 00:00:00",
+        "datetime_format": "%Y-%m-%d %H:%M:%S"
+      }
+    },
+    {
+      "name": "transaction_lines",
+      "primary_keys": [
+        "transaction",
+        "id"
+      ]
+    },
+    {
+      "name": "transaction_accounting_lines",
+      "primary_keys": [
+        "transaction",
+        "transactionline"
+      ]
+    },
+    {
+      "name": "accounts",
+      "primary_keys": [
+        "id"
+      ]
+    }
+  ]
+}

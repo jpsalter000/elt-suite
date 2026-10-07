@@ -38,6 +38,16 @@ mock_provider "aws" {
       repository_url = "123456789012.dkr.ecr.us-east-1.amazonaws.com/elt-suite"
     }
   }
+  mock_resource "aws_secretsmanager_secret" {
+    defaults = {
+      arn = "arn:aws:secretsmanager:us-east-1:123456789012:secret:elt-suite-dev/airflow-abc"
+    }
+  }
+  mock_data "aws_caller_identity" {
+    defaults = {
+      account_id = "123456789012"
+    }
+  }
   mock_resource "aws_db_instance" {
     defaults = {
       address = "elt-suite-dev.abc.us-east-1.rds.amazonaws.com"
@@ -50,6 +60,9 @@ mock_provider "aws" {
     }
   }
 }
+
+# The real random provider runs here (it needs no credentials): provider mocks
+# don't support the ephemeral random_password resources yet.
 
 variables {
   image_tag = "0123abcd"
@@ -97,4 +110,56 @@ run "rejects_mutable_image_tags" {
     image_tag = "latest"
   }
   expect_failures = [var.image_tag]
+}
+
+run "airflow_orchestrates_by_default_instead_of_the_schedule" {
+  command = apply
+
+  variables {
+    schedule_expression = "cron(0 6 * * ? *)"
+  }
+
+  assert {
+    condition     = length(module.airflow) == 1
+    error_message = "Airflow is the orchestrator in dev."
+  }
+  assert {
+    condition     = output.scheduler == "airflow"
+    error_message = "With Airflow on, the EventBridge schedule must stay off or pipelines run twice."
+  }
+}
+
+run "the_eventbridge_schedule_is_the_fallback_without_airflow" {
+  command = apply
+
+  variables {
+    enable_airflow      = false
+    schedule_expression = "cron(0 6 * * ? *)"
+  }
+
+  assert {
+    condition     = length(module.airflow) == 0 && output.scheduler == "eventbridge"
+    error_message = "Without Airflow, the runner's schedule runs the pipeline."
+  }
+}
+
+run "every_image_has_its_own_registry" {
+  command = apply
+
+  assert {
+    condition = (
+      module.registry_airflow.repository_name == "elt-suite-airflow" &&
+      module.registry_mocks.repository_name == "elt-suite-mocks"
+    )
+    error_message = "The runtime, Airflow and mock images live in separate repositories."
+  }
+}
+
+run "the_demo_runs_against_a_mock_netsuite_sidecar" {
+  command = apply
+
+  assert {
+    condition     = output.netsuite_source == "mock sidecar at http://127.0.0.1:8005"
+    error_message = "Dev has no real NetSuite account, so the runner gets the mock as a sidecar."
+  }
 }

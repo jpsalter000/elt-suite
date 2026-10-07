@@ -1,0 +1,280 @@
+version: 2
+
+# The Power BI-facing schema. Every model has an enforced contract, so column names
+# and types are stable and documented in the manifest that the Power BI model test reads.
+# Per-person cost rates never reach this schema; costs appear only rolled up to projects.
+
+models:
+  - name: reporting_dim_date
+    config: {alias: dim_date}
+    description: Every calendar day. Weeks start on Sunday, as in the workbook's Calendar Week.
+    columns:
+      - {name: date_day, data_type: date, data_tests: [unique, not_null]}
+      - {name: week_start, data_type: date}
+      - {name: week_label, data_type: text}
+      - {name: month_start, data_type: date}
+      - {name: month_name, data_type: text}
+      - {name: quarter, data_type: integer}
+      - {name: year, data_type: integer}
+      - {name: day_of_week, data_type: integer, description: "0 = Sunday"}
+      - {name: day_name, data_type: text}
+      - {name: is_weekday, data_type: boolean}
+
+  - name: reporting_dim_employee
+    config: {alias: dim_employee}
+    columns:
+      - {name: employee_id, data_type: integer, data_tests: [unique, not_null]}
+      - {name: employee_name, data_type: text}
+      - {name: department_name, data_type: text}
+      - {name: group_name, data_type: text, description: "Department rolled up via the department_groups seed (e.g. Account Team)."}
+      - {name: title, data_type: text}
+      - {name: hire_date, data_type: date}
+      - {name: release_date, data_type: date}
+      - name: employment_status
+        data_type: text
+        data_tests: [{accepted_values: {arguments: {values: [Current, Released]}}}]
+      - {name: standard_hours_per_day, data_type: "numeric(4,2)"}
+
+  - name: reporting_dim_client
+    config: {alias: dim_client}
+    columns:
+      - {name: client_id, data_type: integer, data_tests: [unique, not_null]}
+      - {name: client_number, data_type: text}
+      - {name: client_name, data_type: text}
+      - {name: is_internal, data_type: boolean}
+      - {name: is_inactive, data_type: boolean}
+
+  - name: reporting_dim_project
+    config: {alias: dim_project}
+    columns:
+      - {name: project_id, data_type: integer, data_tests: [unique, not_null]}
+      - {name: project_number, data_type: text}
+      - {name: project_name, data_type: text}
+      - {name: project_display_name, data_type: text, description: "Number, client and name, as the workbook's Project Name."}
+      - {name: client_id, data_type: integer}
+      - {name: client_name, data_type: text}
+      - {name: project_status, data_type: text}
+      - {name: project_status_label, data_type: text}
+      - {name: is_complete, data_type: boolean, description: "Finalized or closed: priced from invoices and credit memos."}
+      - {name: start_date, data_type: date}
+      - {name: projected_end_date, data_type: date}
+      - {name: department_name, data_type: text}
+      - {name: project_lead, data_type: text}
+
+  - name: reporting_dim_item
+    config: {alias: dim_item}
+    columns:
+      - {name: item_id, data_type: integer, data_tests: [unique, not_null]}
+      - {name: item_name, data_type: text}
+      - {name: category_code, data_type: text}
+      - {name: category_name, data_type: text}
+      - {name: counts_as_worked, data_type: boolean}
+      - {name: is_client_facing, data_type: boolean}
+
+  - name: reporting_fct_time_entries
+    config: {alias: fct_time_entries}
+    description: One row per NetSuite time entry, with hours split into category buckets.
+    columns:
+      - {name: time_entry_id, data_type: integer, data_tests: [unique, not_null]}
+      - name: entry_date
+        data_type: date
+        data_tests: [{relationships: {arguments: {to: ref('reporting_dim_date'), field: date_day}}}]
+      - name: employee_id
+        data_type: integer
+        data_tests:
+          - relationships: {arguments: {to: ref('reporting_dim_employee'), field: employee_id}, config: {severity: warn}}
+      - {name: item_id, data_type: integer}
+      - {name: project_id, data_type: integer}
+      - {name: client_id, data_type: integer}
+      - {name: hours, data_type: "numeric(8,2)"}
+      - {name: worked_hours, data_type: "numeric(8,2)"}
+      - {name: client_facing_hours, data_type: "numeric(8,2)"}
+      - {name: project_work_hours, data_type: "numeric(8,2)"}
+      - {name: client_bd_hours, data_type: "numeric(8,2)"}
+      - {name: internal_productive_hours, data_type: "numeric(8,2)"}
+      - {name: internal_admin_hours, data_type: "numeric(8,2)"}
+      - {name: exempt_hours, data_type: "numeric(8,2)"}
+      - {name: unmapped_hours, data_type: "numeric(8,2)"}
+      - {name: is_billable, data_type: boolean}
+
+  - name: reporting_fct_employee_capacity
+    config: {alias: fct_employee_capacity}
+    description: One row per employee per day employed; the utilization denominator.
+    data_tests:
+      - unique_combination_of_columns: {arguments: {combination: [employee_id, date_day]}}
+    columns:
+      - {name: employee_id, data_type: integer}
+      - {name: date_day, data_type: date}
+      - {name: standard_hours, data_type: "numeric(8,2)"}
+      - {name: exempt_hours, data_type: "numeric(8,2)"}
+      - {name: expected_hours, data_type: "numeric(8,2)"}
+
+  - name: rpt_utilization_weekly
+    description: >
+      The Main Report: one row per employee per calendar week. Every percentage
+      divides by expected hours, except Exempt %, which divides by standard hours.
+      Percentages are null when the denominator is zero.
+    data_tests:
+      - unique_combination_of_columns: {arguments: {combination: [employee_id, week_start]}}
+    columns:
+      - {name: employee_id, data_type: integer}
+      - {name: employee_name, data_type: text}
+      - {name: department_name, data_type: text}
+      - {name: group_name, data_type: text}
+      - {name: week_start, data_type: date}
+      - {name: standard_hours, data_type: "numeric(10,2)"}
+      - {name: expected_hours, data_type: "numeric(10,2)"}
+      - {name: worked_hours, data_type: "numeric(10,2)"}
+      - {name: project_work_hours, data_type: "numeric(10,2)"}
+      - {name: client_bd_hours, data_type: "numeric(10,2)"}
+      - {name: internal_productive_hours, data_type: "numeric(10,2)"}
+      - {name: internal_admin_hours, data_type: "numeric(10,2)"}
+      - {name: exempt_hours, data_type: "numeric(10,2)"}
+      - {name: net_utilization_pct, data_type: "numeric(9,4)"}
+      - {name: project_work_pct, data_type: "numeric(9,4)"}
+      - {name: client_bd_pct, data_type: "numeric(9,4)"}
+      - {name: internal_pct, data_type: "numeric(9,4)"}
+      - {name: exempt_pct, data_type: "numeric(9,4)"}
+
+  - name: rpt_client_hours
+    description: Time to Clients, as hours per client, employee and day.
+    columns:
+      - {name: client_id, data_type: integer}
+      - {name: client_name, data_type: text}
+      - {name: employee_id, data_type: integer}
+      - {name: employee_name, data_type: text}
+      - {name: department_name, data_type: text}
+      - {name: entry_date, data_type: date}
+      - {name: total_hours, data_type: "numeric(10,2)"}
+      - {name: client_facing_hours, data_type: "numeric(10,2)"}
+
+  - name: rpt_top_clients
+    description: >
+      External clients ranked by client-facing hours over the whole calendar. This
+      replaces the workbook's Top-15 macro.
+    columns:
+      - {name: client_id, data_type: integer, data_tests: [unique]}
+      - {name: client_name, data_type: text}
+      - {name: client_facing_hours, data_type: "numeric(10,2)"}
+      - {name: total_hours, data_type: "numeric(10,2)"}
+      - {name: client_rank, data_type: integer}
+      - {name: is_top_15, data_type: boolean}
+
+  - name: rpt_task_breakdown
+    description: Both task breakdowns (tasks by person, persons by task), as hours per month.
+    columns:
+      - {name: month_start, data_type: date}
+      - {name: employee_id, data_type: integer}
+      - {name: employee_name, data_type: text}
+      - {name: employee_department, data_type: text}
+      - {name: project_id, data_type: integer}
+      - {name: project_display_name, data_type: text}
+      - {name: project_department, data_type: text}
+      - {name: client_name, data_type: text}
+      - {name: item_name, data_type: text}
+      - {name: category_name, data_type: text}
+      - {name: hours, data_type: "numeric(10,2)"}
+
+  - name: rpt_project_margin
+    description: >
+      Project Contribution Margin. Price follows project status. Profit is price
+      minus field, incentive and travel costs and time cost. Margin % divides by
+      net revenue, which is price minus pass-through travel and incentive revenue.
+      CM uses the burdened rate.
+    columns:
+      - {name: project_id, data_type: integer, data_tests: [unique, not_null]}
+      - {name: project_display_name, data_type: text}
+      - {name: client_name, data_type: text}
+      - {name: department_name, data_type: text}
+      - {name: project_lead, data_type: text}
+      - {name: project_status_label, data_type: text}
+      - {name: start_date, data_type: date}
+      - {name: total_hours, data_type: "numeric(10,2)"}
+      - {name: time_cost, data_type: "numeric(14,2)"}
+      - {name: burdened_time_cost, data_type: "numeric(14,2)"}
+      - {name: price, data_type: "numeric(14,2)"}
+      - {name: pass_through_revenue, data_type: "numeric(14,2)"}
+      - {name: net_revenue, data_type: "numeric(14,2)"}
+      - {name: field_cost, data_type: "numeric(14,2)"}
+      - {name: incentive_cost, data_type: "numeric(14,2)"}
+      - {name: travel_cost, data_type: "numeric(14,2)"}
+      - {name: project_profit, data_type: "numeric(14,2)"}
+      - {name: project_profit_pct, data_type: "numeric(9,4)"}
+      - {name: contribution_margin, data_type: "numeric(14,2)"}
+      - {name: contribution_margin_pct, data_type: "numeric(9,4)"}
+
+unit_tests:
+  - name: weekly_utilization_divides_by_expected_hours
+    model: rpt_utilization_weekly
+    given:
+      - input: ref('fct_employee_capacity')
+        rows:
+          - {employee_id: 1, date_day: "2026-03-02", standard_hours: 8, exempt_hours: 0, expected_hours: 8}
+          - {employee_id: 1, date_day: "2026-03-03", standard_hours: 8, exempt_hours: 0, expected_hours: 8}
+          - {employee_id: 1, date_day: "2026-03-04", standard_hours: 8, exempt_hours: 4, expected_hours: 4}
+          - {employee_id: 1, date_day: "2026-03-05", standard_hours: 8, exempt_hours: 10, expected_hours: 0}
+          - {employee_id: 1, date_day: "2026-03-06", standard_hours: 8, exempt_hours: 0, expected_hours: 8}
+          - {employee_id: 1, date_day: "2026-03-07", standard_hours: 0, exempt_hours: 0, expected_hours: 0}
+          - {employee_id: 2, date_day: "2026-03-08", standard_hours: 0, exempt_hours: 0, expected_hours: 0}
+      - input: ref('fct_time_entries')
+        rows:
+          - {time_entry_id: 1, employee_id: 1, entry_date: "2026-03-02", worked_hours: 8, project_work_hours: 8, client_bd_hours: 0, internal_productive_hours: 0, internal_admin_hours: 0, exempt_hours: 0}
+          - {time_entry_id: 2, employee_id: 1, entry_date: "2026-03-03", worked_hours: 8, project_work_hours: 4, client_bd_hours: 4, internal_productive_hours: 0, internal_admin_hours: 0, exempt_hours: 0}
+          - {time_entry_id: 3, employee_id: 1, entry_date: "2026-03-04", worked_hours: 4, project_work_hours: 0, client_bd_hours: 0, internal_productive_hours: 3, internal_admin_hours: 1, exempt_hours: 4}
+          - {time_entry_id: 4, employee_id: 1, entry_date: "2026-03-05", worked_hours: 0, project_work_hours: 0, client_bd_hours: 0, internal_productive_hours: 0, internal_admin_hours: 0, exempt_hours: 10}
+          - {time_entry_id: 5, employee_id: 1, entry_date: "2026-03-06", worked_hours: 8, project_work_hours: 6, client_bd_hours: 0, internal_productive_hours: 0, internal_admin_hours: 2, exempt_hours: 0}
+          # Saturday work counts toward the week it falls in (weeks start on Sunday)
+          - {time_entry_id: 6, employee_id: 1, entry_date: "2026-03-07", worked_hours: 2, project_work_hours: 2, client_bd_hours: 0, internal_productive_hours: 0, internal_admin_hours: 0, exempt_hours: 0}
+          - {time_entry_id: 7, employee_id: 2, entry_date: "2026-03-08", worked_hours: 3, project_work_hours: 3, client_bd_hours: 0, internal_productive_hours: 0, internal_admin_hours: 0, exempt_hours: 0}
+      - input: ref('dim_employee')
+        rows:
+          - {employee_id: 1, employee_name: Ava Abara, department_name: Consumer Group, group_name: Account Team}
+          - {employee_id: 2, employee_name: Ben Brandt, department_name: Operations, group_name: Operations}
+    expect:
+      rows:
+        - {employee_id: 1, week_start: "2026-03-01", group_name: Account Team, standard_hours: 40, expected_hours: 28, worked_hours: 30, project_work_hours: 20, client_bd_hours: 4, internal_productive_hours: 3, internal_admin_hours: 3, exempt_hours: 14, net_utilization_pct: 1.0714, project_work_pct: 0.7143, client_bd_pct: 0.1429, internal_pct: 0.2143, exempt_pct: 0.3500}
+        - {employee_id: 2, week_start: "2026-03-08", group_name: Operations, standard_hours: 0, expected_hours: 0, worked_hours: 3, project_work_hours: 3, client_bd_hours: 0, internal_productive_hours: 0, internal_admin_hours: 0, exempt_hours: 0, net_utilization_pct: null, project_work_pct: null, client_bd_pct: null, internal_pct: null, exempt_pct: null}
+
+  - name: project_margin_nets_out_pass_through_revenue
+    model: rpt_project_margin
+    given:
+      - input: ref('dim_project')
+        rows:
+          - {project_id: 500, project_display_name: "100051 Northwind Foods : Brand Tracker", project_status_label: Closed}
+          - {project_id: 600, project_display_name: "100058 Bluepeak Pharma : KOL Interviews", project_status_label: Awarded}
+      - input: ref('fct_project_financials')
+        rows:
+          - {project_id: 500, price_amount: 6000, pass_through_amount: 0, field_cost: 0, incentive_cost: 0, travel_cost: 0}
+          - {project_id: 500, price_amount: 500, pass_through_amount: 500, field_cost: 0, incentive_cost: 0, travel_cost: 0}
+          - {project_id: 500, price_amount: 0, pass_through_amount: 0, field_cost: 2400, incentive_cost: 300, travel_cost: 200}
+      - input: ref('fct_time_entries')
+        rows:
+          - {time_entry_id: 1, project_id: 500, hours: 12, time_cost: 600, burdened_time_cost: 780}
+          - {time_entry_id: 2, project_id: 500, hours: 8, time_cost: 400, burdened_time_cost: 520}
+          - {time_entry_id: 3, project_id: null, hours: 8, time_cost: 400, burdened_time_cost: 520}
+    expect:
+      rows:
+        - {project_id: 500, total_hours: 20, time_cost: 1000, burdened_time_cost: 1300, price: 6500, pass_through_revenue: 500, net_revenue: 6000, field_cost: 2400, incentive_cost: 300, travel_cost: 200, project_profit: 2600, project_profit_pct: 0.4333, contribution_margin: 2300, contribution_margin_pct: 0.3833}
+        - {project_id: 600, total_hours: 0, time_cost: 0, burdened_time_cost: 0, price: 0, pass_through_revenue: 0, net_revenue: 0, field_cost: 0, incentive_cost: 0, travel_cost: 0, project_profit: 0, project_profit_pct: null, contribution_margin: 0, contribution_margin_pct: null}
+
+  - name: top_clients_rank_external_clients_by_client_facing_hours
+    model: rpt_top_clients
+    given:
+      - input: ref('fct_time_entries')
+        rows:
+          - {time_entry_id: 1, client_id: 1, hours: 10, client_facing_hours: 10}
+          - {time_entry_id: 2, client_id: 2, hours: 6, client_facing_hours: 5}
+          - {time_entry_id: 3, client_id: 3, hours: 50, client_facing_hours: 50}
+          - {time_entry_id: 4, client_id: 4, hours: 3, client_facing_hours: 0}
+          - {time_entry_id: 5, client_id: null, hours: 40, client_facing_hours: 0}
+      - input: ref('dim_client')
+        rows:
+          - {client_id: 1, client_name: Northwind Foods, is_internal: false}
+          - {client_id: 2, client_name: Bluepeak Pharma, is_internal: false}
+          - {client_id: 3, client_name: Vandelay Industries (Internal), is_internal: true}
+          - {client_id: 4, client_name: Corvid Analytics, is_internal: false}
+    expect:
+      rows:
+        - {client_id: 1, client_facing_hours: 10, total_hours: 10, client_rank: 1, is_top_15: true}
+        - {client_id: 2, client_facing_hours: 5, total_hours: 6, client_rank: 2, is_top_15: true}
+        - {client_id: 4, client_facing_hours: 0, total_hours: 3, client_rank: 3, is_top_15: true}

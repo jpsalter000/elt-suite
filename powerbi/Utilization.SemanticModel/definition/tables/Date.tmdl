@@ -1,0 +1,102 @@
+table Date
+	lineageTag: 235e55ec-d4de-505b-9dc6-a040ed7050c3
+	dataCategory: Time
+
+	column Date
+		dataType: dateTime
+		formatString: Short Date
+		isKey
+		lineageTag: 2dc081c7-01e8-51f1-bf64-3446724e7387
+		summarizeBy: none
+		sourceColumn: date_day
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Week Start'
+		dataType: dateTime
+		formatString: Short Date
+		lineageTag: c989dacd-cb27-5d87-9b3f-561d8dc34bd3
+		summarizeBy: none
+		sourceColumn: week_start
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Week Label'
+		dataType: string
+		lineageTag: ddb9bbed-7cc2-5bf3-b9a1-12ffe2641411
+		summarizeBy: none
+		sourceColumn: week_label
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Month Start'
+		dataType: dateTime
+		formatString: Short Date
+		lineageTag: 9e6b41a7-94f6-509f-a0d1-50e778c1328d
+		summarizeBy: none
+		sourceColumn: month_start
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Month Name'
+		dataType: string
+		lineageTag: 2e461d11-6b0b-54db-9c8f-4cd499e6af83
+		summarizeBy: none
+		sourceColumn: month_name
+
+		annotation SummarizationSetBy = Automatic
+
+	column Quarter
+		dataType: int64
+		formatString: 0
+		lineageTag: b3525e44-04f8-5102-877f-183dd47d9d00
+		summarizeBy: none
+		sourceColumn: quarter
+
+		annotation SummarizationSetBy = Automatic
+
+	column Year
+		dataType: int64
+		formatString: 0
+		lineageTag: 67e196be-985f-58e8-939f-70aaa020492f
+		summarizeBy: none
+		sourceColumn: year
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Day Of Week'
+		dataType: int64
+		formatString: 0
+		description: 0 = Sunday
+		lineageTag: 68193a09-a41c-5304-a300-5db5bf5aefce
+		summarizeBy: none
+		sourceColumn: day_of_week
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Day Name'
+		dataType: string
+		lineageTag: 0ad221d9-b8f3-557b-90ad-f9789e833503
+		summarizeBy: none
+		sourceColumn: day_name
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Is Weekday'
+		dataType: boolean
+		lineageTag: 90195447-74e5-57b4-968d-aec2749717ae
+		summarizeBy: none
+		sourceColumn: is_weekday
+
+		annotation SummarizationSetBy = Automatic
+
+	partition Date = m
+		mode: import
+		source =
+				let
+				    Source = PostgreSQL.Database(Server, Database),
+				    Data = Source{[Schema = "reporting", Item = "dim_date"]}[Data]
+				in
+				    Data
+
+	annotation PBI_ResultType = Table

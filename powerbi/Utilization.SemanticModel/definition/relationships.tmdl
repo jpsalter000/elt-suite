@@ -1,0 +1,27 @@
+relationship 9ebd20a8-cd32-5f1b-af81-9dd86742aba8
+	fromColumn: 'Time Entries'.'Entry Date'
+	toColumn: Date.Date
+
+relationship 1856ceea-50a7-5357-a0cd-7e4c1b79a939
+	fromColumn: 'Time Entries'.'Employee ID'
+	toColumn: Employee.'Employee ID'
+
+relationship 1d7d3762-4bbb-5eb1-b12e-422d538c03e9
+	fromColumn: 'Time Entries'.'Client ID'
+	toColumn: Client.'Client ID'
+
+relationship 0dc06bb6-01d7-55ee-8119-db21da045bcf
+	fromColumn: 'Time Entries'.'Project ID'
+	toColumn: Project.'Project ID'
+
+relationship bbaba7ec-b17a-5028-a506-434d6946d715
+	fromColumn: 'Time Entries'.'Item ID'
+	toColumn: Item.'Item ID'
+
+relationship 5d9c4287-b0ce-56fe-8d46-aa6c4fb2f873
+	fromColumn: 'Employee Capacity'.Date
+	toColumn: Date.Date
+
+relationship dafb2ec2-c63a-5e88-a406-01e19a29a079
+	fromColumn: 'Employee Capacity'.'Employee ID'
+	toColumn: Employee.'Employee ID'

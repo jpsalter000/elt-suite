@@ -1,0 +1,40 @@
+version: 2
+
+# Staging casts SuiteQL's strings to real types, parses T/F flags and keeps only the
+# latest successful run's rows for full-refresh jobs, so deleted lines drop out.
+
+models:
+  - name: stg_netsuite__departments
+    columns:
+      - {name: department_id, data_tests: [unique, not_null]}
+  - name: stg_netsuite__employees
+    columns:
+      - {name: employee_id, data_tests: [unique, not_null]}
+      - {name: standard_hours_per_day, data_tests: [not_null]}
+  - name: stg_netsuite__customers
+    columns:
+      - {name: customer_id, data_tests: [unique, not_null]}
+  - name: stg_netsuite__projects
+    columns:
+      - {name: project_id, data_tests: [unique, not_null]}
+      - name: project_status_rank
+        data_tests: [{accepted_values: {arguments: {values: [1, 2, 3, 4, 5], quote: false}}}]
+  - name: stg_netsuite__items
+    columns:
+      - {name: item_id, data_tests: [unique, not_null]}
+  - name: stg_netsuite__time_entries
+    columns:
+      - {name: time_entry_id, data_tests: [unique, not_null]}
+      - {name: hours, data_tests: [not_null]}
+  - name: stg_netsuite__transactions
+    columns:
+      - {name: transaction_id, data_tests: [unique, not_null]}
+  - name: stg_netsuite__transaction_lines
+    data_tests:
+      - unique_combination_of_columns: {arguments: {combination: [transaction_id, line_id]}}
+  - name: stg_netsuite__transaction_accounting_lines
+    data_tests:
+      - unique_combination_of_columns: {arguments: {combination: [transaction_id, line_id]}}
+  - name: stg_netsuite__accounts
+    columns:
+      - {name: account_id, data_tests: [unique, not_null]}
