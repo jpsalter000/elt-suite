@@ -1,0 +1,42 @@
+version: 2
+
+# Helpline staging maps cases onto the common ticket columns: the owner's staff id,
+# ';'-joined labels split into a JSON array, good/bad ratings into csat_positive.
+# Tombstones (deleted cases) stay as rows with is_deleted = true and every other
+# column null.
+
+models:
+  - name: stg_helpline__cases
+    columns:
+      - {name: ticket_native_id, data_tests: [unique, not_null]}
+  - name: stg_helpline__staff
+    columns:
+      - {name: agent_native_id, data_tests: [unique, not_null]}
+
+unit_tests:
+  - name: helpline_cases_map_owner_rating_and_tombstones
+    model: stg_helpline__cases
+    config: {tags: [vendors]}
+    given:
+      - input: source('helpline', 'cases')
+        rows:
+          - case_number: HL-000001
+            title: Charged twice
+            contact: '{"email": "user1@example.org"}'
+            owner: '{"staff_id": "abc", "name": "Ari Cohen"}'
+            csat: '{"rating": "good"}'
+            effort_minutes: 30
+            deleted: false
+          - case_number: HL-000002
+            title: Sync is stuck
+            contact: '{"email": "user2@example.org"}'
+            owner: null
+            csat: '{"rating": "bad"}'
+            effort_minutes: 0
+            deleted: false
+          - {case_number: HL-000003, title: null, contact: null, owner: null, csat: null, effort_minutes: null, deleted: true}
+    expect:
+      rows:
+        - {ticket_native_id: HL-000001, subject: Charged twice, requester_email: user1@example.org, requester_name: null, assignee_native_id: abc, csat_positive: true, time_spent_minutes: 30, is_deleted: false}
+        - {ticket_native_id: HL-000002, subject: Sync is stuck, requester_email: user2@example.org, requester_name: null, assignee_native_id: null, csat_positive: false, time_spent_minutes: 0, is_deleted: false}
+        - {ticket_native_id: HL-000003, subject: null, requester_email: null, requester_name: null, assignee_native_id: null, csat_positive: null, time_spent_minutes: null, is_deleted: true}

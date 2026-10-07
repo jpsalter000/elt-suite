@@ -14,8 +14,15 @@ end
 $$;
 {% endmacro %}
 
+{#- A selective build (e.g. only the vendor models) may not create the reporting schema. -#}
 {% macro grant_reporting_usage() %}
 {%- if execute %}
-grant usage on schema reporting to reporting_reader;
+do $$
+begin
+    if exists (select from pg_namespace where nspname = 'reporting') then
+        grant usage on schema reporting to reporting_reader;
+    end if;
+end
+$$;
 {%- endif %}
 {% endmacro %}

@@ -99,13 +99,10 @@ jobs:
           for port in 8001 8002 8003 8004 8005; do
             timeout 60 bash -c "until curl -sf localhost:$port/docs > /dev/null; do sleep 1; done"
           done
-      - name: Mock API pipelines (two runs each)
+      - name: Vendor normalization pipeline (four vendor extracts, then dbt build; twice)
         run: |
-          for consumer in globex_shopfront initech_ticketdesk umbrella_cartwheel hooli_helpline; do
-            consumer="${consumer}_extract_and_load"
-            uv run elt run $consumer
-            uv run elt run $consumer
-          done
+          uv run elt pipeline run vendor_normalization_daily
+          uv run elt pipeline run vendor_normalization_daily
       - name: Utilization pipeline (every NetSuite extract, then dbt build; twice)
         run: |
           uv run elt pipeline run utilization_daily
@@ -113,6 +110,11 @@ jobs:
       - name: Summarize runs
         run: |
           {
+            echo "### vendor_normalization_daily: common marts by tenant"
+            echo '```'
+            psql "$WAREHOUSE_DSN" -c "SELECT source_system, tenant, currency, status, count(*) AS orders, sum(total_amount) AS total FROM marts.fct_commerce_orders GROUP BY 1, 2, 3, 4 ORDER BY 1, 3, 4"
+            psql "$WAREHOUSE_DSN" -c "SELECT source_system, tenant, priority, count(*) AS tickets, round(avg(time_spent_minutes)) AS avg_minutes, round(avg(csat_positive::int), 2) AS csat_positive_rate FROM marts.fct_support_tickets GROUP BY 1, 2, 3 ORDER BY 1, 3"
+            echo '```'
             echo "### utilization_daily: reporting views"
             echo '```'
             psql "$WAREHOUSE_DSN" -c "SELECT group_name, week_start, round(avg(net_utilization_pct), 3) AS avg_net_utilization FROM reporting.rpt_utilization_weekly WHERE week_start >= '2026-08-02' GROUP BY 1, 2 ORDER BY 2, 1"

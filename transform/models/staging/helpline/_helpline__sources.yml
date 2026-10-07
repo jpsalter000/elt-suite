@@ -1,0 +1,14 @@
+version: 2
+
+sources:
+  - name: helpline
+    description: >
+      Raw Helpline (support) changes-feed extracts for tenant hooli. A deleted case is a
+      tombstone: the row keeps only case_number, deleted and updated_at.
+    schema: "{{ var('vendors')['helpline']['schema'] }}"
+    loaded_at_field: _loaded_at
+    freshness:
+      warn_after: {count: 36, period: hour}
+    tables:
+      - name: cases
+      - name: staff

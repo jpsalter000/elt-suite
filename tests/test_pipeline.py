@@ -204,6 +204,38 @@ def test_the_utilization_pipeline_extracts_every_netsuite_job_then_builds(monkey
     assert tasks[-1] is build
 
 
+VENDOR_CONSUMERS = {
+    "globex_shopfront_extract_and_load",
+    "umbrella_cartwheel_extract_and_load",
+    "initech_ticketdesk_extract_and_load",
+    "hooli_helpline_extract_and_load",
+}
+
+
+def test_the_vendor_pipeline_extracts_all_four_vendors_then_builds_their_models(monkeypatch):
+    from pathlib import Path
+
+    monkeypatch.setenv("ELT_HOME", str(Path(__file__).parents[1]))
+    pipeline = load_pipeline("vendor_normalization_daily")
+    tasks = plan(pipeline)
+    extracts = [t for t in tasks if t.kind == "extract_load"]
+    assert {t.consumer for t in extracts} == VENDOR_CONSUMERS
+    assert len(extracts) == 9  # shopfront 2, cartwheel 3, ticketdesk 2, helpline 2
+    (step,) = [s for s in pipeline.steps if s.type == "dbt"]
+    assert step.command == "build" and step.select == "tag:vendors+"
+    (build,) = [t for t in tasks if t.kind == "dbt"]
+    assert set(build.depends_on) == {t.id for t in extracts}
+
+
+def test_the_utilization_pipeline_leaves_vendor_models_out(monkeypatch):
+    """Its environment has no vendor extracts, so building vendor models there would fail."""
+    from pathlib import Path
+
+    monkeypatch.setenv("ELT_HOME", str(Path(__file__).parents[1]))
+    (step,) = [s for s in load_pipeline("utilization_daily").steps if s.type == "dbt"]
+    assert step.exclude == "tag:vendors"
+
+
 # --- running tasks ---------------------------------------------------------------------
 
 

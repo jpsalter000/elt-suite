@@ -1,0 +1,15 @@
+version: 2
+
+sources:
+  - name: cartwheel
+    description: >
+      Raw Cartwheel (commerce) extracts for tenant umbrella: camelCase columns, money in
+      integer cents, epoch-second timestamps, '' for missing values, soft deletes.
+    schema: "{{ var('vendors')['cartwheel']['schema'] }}"
+    loaded_at_field: _loaded_at
+    freshness:
+      warn_after: {count: 36, period: hour}
+    tables:
+      - name: customers
+      - name: orders
+      - name: order_items

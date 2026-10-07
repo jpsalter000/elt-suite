@@ -1,0 +1,9 @@
+source_system,vendor_priority,priority
+ticketdesk,urgent,urgent
+ticketdesk,high,high
+ticketdesk,normal,normal
+ticketdesk,low,low
+helpline,P1,urgent
+helpline,P2,high
+helpline,P3,normal
+helpline,P4,low

@@ -1,0 +1,12 @@
+version: 2
+
+sources:
+  - name: ticketdesk
+    description: Raw Ticketdesk (support) extracts for tenant initech. Timestamps are UTC without an offset.
+    schema: "{{ var('vendors')['ticketdesk']['schema'] }}"
+    loaded_at_field: _loaded_at
+    freshness:
+      warn_after: {count: 36, period: hour}
+    tables:
+      - name: tickets
+      - name: agents

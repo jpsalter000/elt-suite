@@ -1,0 +1,13 @@
+source_system,vendor_status,status
+shopfront,pending,pending
+shopfront,paid,paid
+shopfront,shipped,shipped
+shopfront,delivered,delivered
+shopfront,cancelled,cancelled
+shopfront,refunded,refunded
+cartwheel,AWAITING_PAYMENT,pending
+cartwheel,FULFILLED,paid
+cartwheel,IN_TRANSIT,shipped
+cartwheel,COMPLETE,delivered
+cartwheel,VOIDED,cancelled
+cartwheel,RETURNED,refunded

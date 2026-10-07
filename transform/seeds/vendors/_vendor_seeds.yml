@@ -1,0 +1,39 @@
+version: 2
+
+# Vocabulary maps from each vendor onto the common models (docs/vendor-variants.md).
+# A vendor value missing here leaves the mapped column null, which the marts'
+# not_null tests turn into a failed build rather than silently dropped rows.
+
+seeds:
+  - name: order_status_map
+    description: Shopfront status / Cartwheel orderState -> common order status.
+    data_tests:
+      - unique_combination_of_columns: {arguments: {combination: [source_system, vendor_status]}}
+    columns:
+      - name: status
+        data_tests:
+          - not_null
+          - accepted_values: {arguments: {values: [pending, paid, shipped, delivered, cancelled, refunded]}}
+  - name: ticket_status_map
+    description: Ticketdesk status / Helpline state -> common ticket status.
+    data_tests:
+      - unique_combination_of_columns: {arguments: {combination: [source_system, vendor_status]}}
+    columns:
+      - name: status
+        data_tests:
+          - not_null
+          - accepted_values: {arguments: {values: [new, open, pending, solved, closed]}}
+  - name: ticket_priority_map
+    description: Ticketdesk priority / Helpline urgency (P1-P4) -> common priority.
+    data_tests:
+      - unique_combination_of_columns: {arguments: {combination: [source_system, vendor_priority]}}
+    columns:
+      - name: priority
+        data_tests:
+          - not_null
+          - accepted_values: {arguments: {values: [urgent, high, normal, low]}}
+  - name: country_codes
+    description: Country names (as Cartwheel sends them) -> ISO 3166-1 alpha-2.
+    columns:
+      - {name: country_name, data_tests: [unique, not_null]}
+      - {name: country_code, data_tests: [unique, not_null]}

@@ -1,0 +1,45 @@
+version: 2
+
+# Shopfront staging renames to the common column names, types money as numeric(12,2)
+# and unnests each order's line_items into its own model. Shopfront never deletes.
+
+models:
+  - name: stg_shopfront__customers
+    columns:
+      - {name: customer_native_id, data_tests: [unique, not_null]}
+  - name: stg_shopfront__orders
+    columns:
+      - {name: order_native_id, data_tests: [unique, not_null]}
+      - {name: total_amount, data_tests: [not_null]}
+  - name: stg_shopfront__order_lines
+    description: One row per element of an order's nested line_items, numbered from 1.
+    columns:
+      - {name: order_line_native_id, data_tests: [unique, not_null]}
+
+unit_tests:
+  - name: shopfront_line_items_unnest_into_numbered_lines
+    model: stg_shopfront__order_lines
+    config: {tags: [vendors]}
+    given:
+      - input: source('shopfront', 'orders')
+        rows:
+          - id: ord_00001
+            line_items: '[{"sku": "MUG-11OZ", "quantity": 2, "unit_price": 12.5}, {"sku": "CAP", "quantity": 1, "unit_price": 19}]'
+          - {id: ord_00002, line_items: "[]"}
+    expect:
+      rows:
+        - {order_line_native_id: ord_00001-1, order_native_id: ord_00001, line_number: 1, sku: MUG-11OZ, quantity: 2, unit_price: 12.50, line_amount: 25.00}
+        - {order_line_native_id: ord_00001-2, order_native_id: ord_00001, line_number: 2, sku: CAP, quantity: 1, unit_price: 19.00, line_amount: 19.00}
+
+  - name: shopfront_customer_address_is_optional
+    model: stg_shopfront__customers
+    config: {tags: [vendors]}
+    given:
+      - input: source('shopfront', 'customers')
+        rows:
+          - {id: cus_0001, name: Ada Lovelace, tier: pro, address: '{"city": "Leeds", "country": "GB"}'}
+          - {id: cus_0002, name: Alan Turing, tier: null, address: null}
+    expect:
+      rows:
+        - {customer_native_id: cus_0001, full_name: Ada Lovelace, vendor_tier: pro, city: Leeds, country_code: GB, country_name: null, is_deleted: false}
+        - {customer_native_id: cus_0002, full_name: Alan Turing, vendor_tier: null, city: null, country_code: null, country_name: null, is_deleted: false}

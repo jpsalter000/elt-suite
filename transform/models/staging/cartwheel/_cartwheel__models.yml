@@ -1,0 +1,95 @@
+version: 2
+
+# Cartwheel staging converts cents to numeric(12,2), unix seconds to timestamptz,
+# Y/N to booleans and '' to null, and keeps soft-deleted rows with is_deleted set.
+# Its columns are camelCase, so the unit tests use SQL fixtures that quote them.
+
+models:
+  - name: stg_cartwheel__customers
+    columns:
+      - {name: customer_native_id, data_tests: [unique, not_null]}
+  - name: stg_cartwheel__orders
+    columns:
+      - {name: order_native_id, data_tests: [unique, not_null]}
+      - {name: total_amount, data_tests: [not_null]}
+  - name: stg_cartwheel__order_items
+    description: Line items from Cartwheel's own endpoint, numbered within each order by item id.
+    columns:
+      - {name: order_line_native_id, data_tests: [unique, not_null]}
+
+unit_tests:
+  - name: cartwheel_orders_convert_cents_epochs_and_empty_strings
+    model: stg_cartwheel__orders
+    config: {tags: [vendors]}
+    given:
+      - input: source('cartwheel', 'orders')
+        format: sql
+        rows: |
+          select 900001::bigint as "orderId", 5001::bigint as "customerId",
+                 'VOIDED'::text as "orderState", 'EUR'::text as "currencyCode",
+                 1000::bigint as "subtotalCents", 499::bigint as "shippingCents",
+                 150::bigint as "discountCents", 1349::bigint as "totalCents",
+                 ''::text as "promoCode", 1767225600::bigint as "placed",
+                 1767229200::bigint as "modified", true as "isDeleted",
+                 1767229200::bigint as "deletedAt",
+                 null::uuid as _run_id, null::timestamptz as _loaded_at
+    expect:
+      rows:
+        - order_native_id: "900001"
+          customer_native_id: "5001"
+          vendor_status: VOIDED
+          currency: EUR
+          total_amount: 13.49
+          shipping_amount: 4.99
+          discount_amount: 1.50
+          promo_code: null
+          placed_at: "2026-01-01 00:00:00+00"
+          updated_at: "2026-01-01 01:00:00+00"
+          is_deleted: true
+
+  - name: cartwheel_customers_join_names_and_null_empty_strings
+    model: stg_cartwheel__customers
+    config: {tags: [vendors]}
+    given:
+      - input: source('cartwheel', 'customers')
+        format: sql
+        rows: |
+          select 5001::bigint as "customerId", 'Alex'::text as "firstName",
+                 'Nguyen'::text as "lastName", 'alex@example.net'::text as "emailAddress",
+                 ''::text as "loyaltyTier", 'Y'::text as "marketingConsent",
+                 ''::text as "addrLine1", ''::text as "addrCity", ''::text as "addrCountry",
+                 1767225600::bigint as "created", 1767225600::bigint as "modified",
+                 false as "isDeleted", null::bigint as "deletedAt",
+                 null::uuid as _run_id, null::timestamptz as _loaded_at
+    expect:
+      rows:
+        - customer_native_id: "5001"
+          full_name: Alex Nguyen
+          marketing_opt_in: true
+          vendor_tier: null
+          city: null
+          country_code: null
+          country_name: null
+          created_at: "2026-01-01 00:00:00+00"
+          is_deleted: false
+
+  - name: cartwheel_items_are_numbered_by_item_id_within_each_order
+    model: stg_cartwheel__order_items
+    config: {tags: [vendors]}
+    given:
+      - input: source('cartwheel', 'order_items')
+        format: sql
+        rows: |
+          select * from (values
+              (5::bigint, 900001::bigint, 'GIZMO'::text, 2::bigint, 4999::bigint, 9998::bigint),
+              (3::bigint, 900001::bigint, 'CABLE-2M'::text, 1::bigint, 899::bigint, 899::bigint)
+          ) as v("orderItemId", "orderId", "productCode", quantity, "unitPriceCents", "lineTotalCents")
+          cross join (
+              select 1767225600::bigint as modified, false as "isDeleted",
+                     null::text as "deletedAt", null::uuid as _run_id,
+                     null::timestamptz as _loaded_at
+          ) as common
+    expect:
+      rows:
+        - {order_line_native_id: "3", order_native_id: "900001", line_number: 1, sku: CABLE-2M, unit_price: 8.99, line_amount: 8.99}
+        - {order_line_native_id: "5", order_native_id: "900001", line_number: 2, sku: GIZMO, unit_price: 49.99, line_amount: 99.98}

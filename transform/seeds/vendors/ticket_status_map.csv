@@ -1,0 +1,10 @@
+source_system,vendor_status,status
+ticketdesk,open,open
+ticketdesk,pending,pending
+ticketdesk,solved,solved
+ticketdesk,closed,closed
+helpline,new,new
+helpline,open,open
+helpline,on_hold,pending
+helpline,resolved,solved
+helpline,closed,closed
