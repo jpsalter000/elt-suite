@@ -1,0 +1,37 @@
+{
+  "consumer": "hooli_helpline_extract_and_load",
+  "job": "staff",
+  "primary_keys": [
+    "staff_id"
+  ],
+  "incremental_key": "updated_at",
+  "generated_at": "2026-09-29T21:47:41+00:00",
+  "records_scanned": 16,
+  "fields": {
+    "staff_id": {
+      "type": "string",
+      "nullable": false
+    },
+    "display_name": {
+      "type": "string",
+      "nullable": false
+    },
+    "email": {
+      "type": "string",
+      "nullable": false
+    },
+    "group": {
+      "type": "string",
+      "nullable": false
+    },
+    "status": {
+      "type": "string",
+      "nullable": false
+    },
+    "updated_at": {
+      "type": "string",
+      "nullable": false,
+      "format": "date-time"
+    }
+  }
+}

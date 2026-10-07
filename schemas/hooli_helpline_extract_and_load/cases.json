@@ -1,0 +1,88 @@
+{
+  "consumer": "hooli_helpline_extract_and_load",
+  "job": "cases",
+  "primary_keys": [
+    "case_number"
+  ],
+  "incremental_key": "updated_at",
+  "generated_at": "2026-09-29T21:47:39+00:00",
+  "records_scanned": 400,
+  "fields": {
+    "case_number": {
+      "type": "string",
+      "nullable": false
+    },
+    "title": {
+      "type": "string",
+      "nullable": true
+    },
+    "state": {
+      "type": "string",
+      "nullable": true
+    },
+    "urgency": {
+      "type": "string",
+      "nullable": true
+    },
+    "channel": {
+      "type": "string",
+      "nullable": true
+    },
+    "contact": {
+      "type": "object",
+      "nullable": true,
+      "properties": {
+        "email": {
+          "type": "string",
+          "nullable": false
+        }
+      }
+    },
+    "owner": {
+      "type": "object",
+      "nullable": true,
+      "properties": {
+        "staff_id": {
+          "type": "string",
+          "nullable": false
+        },
+        "name": {
+          "type": "string",
+          "nullable": false
+        }
+      }
+    },
+    "labels": {
+      "type": "string",
+      "nullable": true
+    },
+    "csat": {
+      "type": "object",
+      "nullable": true,
+      "properties": {
+        "rating": {
+          "type": "string",
+          "nullable": false
+        }
+      }
+    },
+    "effort_minutes": {
+      "type": "integer",
+      "nullable": true
+    },
+    "opened_at": {
+      "type": "string",
+      "nullable": true,
+      "format": "date-time"
+    },
+    "updated_at": {
+      "type": "string",
+      "nullable": false,
+      "format": "date-time"
+    },
+    "deleted": {
+      "type": "boolean",
+      "nullable": false
+    }
+  }
+}

@@ -1,0 +1,48 @@
+{
+  "consumer": "umbrella_cartwheel_extract_and_load",
+  "job": "order_items",
+  "primary_keys": [
+    "orderItemId"
+  ],
+  "incremental_key": "modified",
+  "generated_at": "2026-09-29T21:47:36+00:00",
+  "records_scanned": 1100,
+  "fields": {
+    "orderItemId": {
+      "type": "integer",
+      "nullable": false
+    },
+    "orderId": {
+      "type": "integer",
+      "nullable": false
+    },
+    "productCode": {
+      "type": "string",
+      "nullable": false
+    },
+    "quantity": {
+      "type": "integer",
+      "nullable": false
+    },
+    "unitPriceCents": {
+      "type": "integer",
+      "nullable": false
+    },
+    "lineTotalCents": {
+      "type": "integer",
+      "nullable": false
+    },
+    "modified": {
+      "type": "integer",
+      "nullable": false
+    },
+    "isDeleted": {
+      "type": "boolean",
+      "nullable": false
+    },
+    "deletedAt": {
+      "type": "null",
+      "nullable": true
+    }
+  }
+}
