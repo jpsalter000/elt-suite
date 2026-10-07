@@ -1,0 +1,39 @@
+{
+  "name": "vendor_normalization_daily",
+  "description": "Daily extracts from the four mock vendors (two commerce, two support), then the dbt build that normalizes them into common commerce and support marts.",
+  "schedule": "30 6 * * *",
+  "steps": [
+    {
+      "id": "extract_shopfront",
+      "type": "extract_load",
+      "consumer": "globex_shopfront_extract_and_load"
+    },
+    {
+      "id": "extract_cartwheel",
+      "type": "extract_load",
+      "consumer": "umbrella_cartwheel_extract_and_load"
+    },
+    {
+      "id": "extract_ticketdesk",
+      "type": "extract_load",
+      "consumer": "initech_ticketdesk_extract_and_load"
+    },
+    {
+      "id": "extract_helpline",
+      "type": "extract_load",
+      "consumer": "hooli_helpline_extract_and_load"
+    },
+    {
+      "id": "transform",
+      "type": "dbt",
+      "command": "build",
+      "select": "tag:vendors+",
+      "depends_on": [
+        "extract_shopfront",
+        "extract_cartwheel",
+        "extract_ticketdesk",
+        "extract_helpline"
+      ]
+    }
+  ]
+}

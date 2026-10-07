@@ -18,6 +18,12 @@ vars:
   calendar_end: null # defaults to the latest logged day
   internal_client_names: ["Vandelay Industries (Internal)"]
   top_clients: 15
+  # Raw schema and tenant for each mock vendor (docs/vendor-variants.md).
+  vendors:
+    shopfront: {schema: globex_shopfront, tenant: globex}
+    cartwheel: {schema: umbrella_cartwheel, tenant: umbrella}
+    ticketdesk: {schema: initech_ticketdesk, tenant: initech}
+    helpline: {schema: hooli_helpline, tenant: hooli}
 
 on-run-start:
   - "{{ create_reporting_roles() }}"
@@ -29,10 +35,18 @@ models:
     +materialized: view
     staging:
       +schema: staging
+      # Vendor models are built by vendor_normalization_daily; utilization_daily
+      # excludes them (tag:vendors) because its environment has no vendor extracts.
+      shopfront: {+tags: [vendors]}
+      cartwheel: {+tags: [vendors]}
+      ticketdesk: {+tags: [vendors]}
+      helpline: {+tags: [vendors]}
     intermediate:
       +schema: intermediate
     marts:
       +schema: marts
+      commerce: {+tags: [vendors]}
+      support: {+tags: [vendors]}
     reporting:
       +schema: reporting
       +contract:
@@ -50,6 +64,8 @@ seeds:
     account_classes:
       +column_types:
         account_number: text
+    vendors:
+      +tags: [vendors]
 
 data_tests:
   elt_suite:
