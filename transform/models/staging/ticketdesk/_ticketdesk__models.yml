@@ -1,8 +1,9 @@
 version: 2
 
-# Ticketdesk staging unpacks the nested requester, turns the JSON tag array into
-# text[], hours into whole minutes and the 1-5 satisfaction score into
-# csat_positive (4-5 true, 1-2 false, 3 or unscored null). Ticketdesk never deletes.
+# Ticketdesk staging unpacks the nested requester, keeps tags as a JSON array (the
+# common shape; dbt unit tests can't build Postgres array fixtures), turns hours into
+# whole minutes and the 1-5 satisfaction score into csat_positive (4-5 true, 1-2
+# false, 3 or unscored null). Ticketdesk never deletes.
 
 models:
   - name: stg_ticketdesk__tickets

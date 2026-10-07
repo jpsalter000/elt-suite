@@ -1,8 +1,9 @@
 version: 2
 
 # Helpline staging maps cases onto the common ticket columns: the owner's staff id,
-# ';'-joined labels split into text[], good/bad ratings into csat_positive. Tombstones
-# (deleted cases) stay as rows with is_deleted = true and every other column null.
+# ';'-joined labels split into a JSON array, good/bad ratings into csat_positive.
+# Tombstones (deleted cases) stay as rows with is_deleted = true and every other
+# column null.
 
 models:
   - name: stg_helpline__cases

@@ -82,4 +82,4 @@ unit_tests:
       rows:
         - {source_system: shopfront, customer_native_id: cus_1, customer_key: 449b366f676ea22f57e98568b4e698a9, country_code: GB, is_deleted: false}
         - {source_system: cartwheel, customer_native_id: "5", customer_key: 38aa17e6f9d0f74ca2798d1d7ff4f702, country_code: DE, is_deleted: false}
-        - {source_system: cartwheel, customer_native_id: "6", country_code: null, is_deleted: true}
+        - {source_system: cartwheel, customer_native_id: "6", customer_key: e99a44fe33496e87d5f6d53070c769b7, country_code: null, is_deleted: true}
