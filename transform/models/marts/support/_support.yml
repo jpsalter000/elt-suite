@@ -1,0 +1,54 @@
+version: 2
+
+# Common support models: Ticketdesk (initech) and Helpline (hooli) unioned into one
+# shape, per docs/vendor-variants.md. Status and priority are mapped by seeds; team
+# names stay in each vendor's own vocabulary (function vs escalation tier). The
+# ticket fact holds live tickets only; Helpline tombstones stay in staging.
+
+models:
+  - name: dim_support_agents
+    columns:
+      - {name: agent_key, data_tests: [unique, not_null]}
+      - name: source_system
+        data_tests: [not_null, {accepted_values: {arguments: {values: [ticketdesk, helpline]}}}]
+
+  - name: fct_support_tickets
+    columns:
+      - {name: ticket_key, data_tests: [unique, not_null]}
+      - name: status
+        data_tests:
+          - not_null
+          - accepted_values: {arguments: {values: [new, open, pending, solved, closed]}}
+      - name: priority
+        data_tests:
+          - not_null
+          - accepted_values: {arguments: {values: [urgent, high, normal, low]}}
+      - name: assignee_agent_key
+        description: Null for unassigned tickets.
+        data_tests:
+          - relationships: {arguments: {to: ref('dim_support_agents'), field: agent_key}}
+
+unit_tests:
+  - name: support_tickets_map_vocabularies_and_drop_tombstones
+    model: fct_support_tickets
+    config: {tags: [vendors]}
+    given:
+      - input: ref('stg_ticketdesk__tickets')
+        rows:
+          - {ticket_native_id: "1", vendor_status: pending, vendor_priority: urgent, assignee_native_id: "3", is_deleted: false}
+      - input: ref('stg_helpline__cases')
+        rows:
+          - {ticket_native_id: HL-1, vendor_status: on_hold, vendor_priority: P1, assignee_native_id: abc, is_deleted: false}
+          - {ticket_native_id: HL-2, vendor_status: null, vendor_priority: null, assignee_native_id: null, is_deleted: true}
+      - input: ref('ticket_status_map')
+        rows:
+          - {source_system: ticketdesk, vendor_status: pending, status: pending}
+          - {source_system: helpline, vendor_status: on_hold, status: pending}
+      - input: ref('ticket_priority_map')
+        rows:
+          - {source_system: ticketdesk, vendor_priority: urgent, priority: urgent}
+          - {source_system: helpline, vendor_priority: P1, priority: urgent}
+    expect:
+      rows:
+        - {source_system: ticketdesk, tenant: initech, ticket_native_id: "1", ticket_key: 5bb00512f04e0ce05d6ae85a4d8283ad, status: pending, priority: urgent, assignee_agent_key: 800cda2fe1231685030fb2f10fb66a1f}
+        - {source_system: helpline, tenant: hooli, ticket_native_id: HL-1, ticket_key: 7b2d6f6fcd0b11147778fb793bf725fa, status: pending, priority: urgent, assignee_agent_key: cad023c221ab00118cda05d220155770}

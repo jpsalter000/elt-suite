@@ -1,0 +1,31 @@
+version: 2
+
+# Ticketdesk staging unpacks the nested requester, turns the JSON tag array into
+# text[], hours into whole minutes and the 1-5 satisfaction score into
+# csat_positive (4-5 true, 1-2 false, 3 or unscored null). Ticketdesk never deletes.
+
+models:
+  - name: stg_ticketdesk__tickets
+    columns:
+      - {name: ticket_native_id, data_tests: [unique, not_null]}
+  - name: stg_ticketdesk__agents
+    columns:
+      - {name: agent_native_id, data_tests: [unique, not_null]}
+
+unit_tests:
+  - name: ticketdesk_scores_and_hours_are_normalized
+    model: stg_ticketdesk__tickets
+    config: {tags: [vendors]}
+    given:
+      - input: source('ticketdesk', 'tickets')
+        rows:
+          - {id: 1, satisfaction_score: 5, time_spent_hours: 1.5, assignee_id: 3, requester: '{"name": "Customer 1", "email": "c1@example.com"}'}
+          - {id: 2, satisfaction_score: 3, time_spent_hours: 0, assignee_id: null, requester: '{"name": "Customer 2", "email": "c2@example.com"}'}
+          - {id: 3, satisfaction_score: 1, time_spent_hours: 2.25, assignee_id: 3, requester: '{"name": "Customer 3", "email": "c3@example.com"}'}
+          - {id: 4, satisfaction_score: null, time_spent_hours: 10, assignee_id: 4, requester: '{"name": "Customer 4", "email": "c4@example.com"}'}
+    expect:
+      rows:
+        - {ticket_native_id: "1", csat_positive: true, time_spent_minutes: 90, assignee_native_id: "3", requester_email: c1@example.com, requester_name: Customer 1, is_deleted: false}
+        - {ticket_native_id: "2", csat_positive: null, time_spent_minutes: 0, assignee_native_id: null, requester_email: c2@example.com, requester_name: Customer 2, is_deleted: false}
+        - {ticket_native_id: "3", csat_positive: false, time_spent_minutes: 135, assignee_native_id: "3", requester_email: c3@example.com, requester_name: Customer 3, is_deleted: false}
+        - {ticket_native_id: "4", csat_positive: null, time_spent_minutes: 600, assignee_native_id: "4", requester_email: c4@example.com, requester_name: Customer 4, is_deleted: false}

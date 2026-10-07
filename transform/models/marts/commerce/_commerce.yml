@@ -1,0 +1,85 @@
+version: 2
+
+# Common commerce models: Shopfront (globex) and Cartwheel (umbrella) unioned into one
+# shape, per docs/vendor-variants.md. Keys are md5(source_system || ':' || native id),
+# because native ids collide across vendors and differ in type.
+#
+# Deletes: the customer dimension keeps soft-deleted customers (flagged), so facts
+# can still join them; the order and order-line facts hold live records only.
+
+models:
+  - name: dim_commerce_customers
+    columns:
+      - {name: customer_key, data_tests: [unique, not_null]}
+      - name: source_system
+        data_tests: [not_null, {accepted_values: {arguments: {values: [shopfront, cartwheel]}}}]
+      - name: country_code
+        description: ISO 3166-1 alpha-2. Shopfront sends codes; Cartwheel's country names are mapped.
+      - name: vendor_tier
+        description: The vendor's own tier; Shopfront plans and Cartwheel loyalty levels are not comparable.
+
+  - name: fct_commerce_orders
+    columns:
+      - {name: order_key, data_tests: [unique, not_null]}
+      - name: customer_key
+        data_tests:
+          - not_null
+          - relationships: {arguments: {to: ref('dim_commerce_customers'), field: customer_key}}
+      - name: status
+        description: Common status, mapped from each vendor's vocabulary by the order_status_map seed.
+        data_tests:
+          - not_null
+          - accepted_values: {arguments: {values: [pending, paid, shipped, delivered, cancelled, refunded]}}
+      - name: currency
+        data_tests: [not_null, {accepted_values: {arguments: {values: [USD, EUR, GBP]}}}]
+      - {name: total_amount, data_tests: [not_null]}
+
+  - name: fct_commerce_order_lines
+    columns:
+      - {name: order_line_key, data_tests: [unique, not_null]}
+      - name: order_key
+        data_tests:
+          - not_null
+          - relationships: {arguments: {to: ref('fct_commerce_orders'), field: order_key}}
+
+unit_tests:
+  - name: commerce_orders_map_status_and_drop_deleted
+    model: fct_commerce_orders
+    config: {tags: [vendors]}
+    given:
+      - input: ref('stg_shopfront__orders')
+        rows:
+          - {order_native_id: ord_1, customer_native_id: cus_1, vendor_status: shipped, currency: USD, total_amount: 10, is_deleted: false}
+      - input: ref('stg_cartwheel__orders')
+        rows:
+          - {order_native_id: "9", customer_native_id: "5", vendor_status: IN_TRANSIT, currency: GBP, total_amount: 20, is_deleted: false}
+          - {order_native_id: "10", customer_native_id: "5", vendor_status: VOIDED, currency: GBP, total_amount: 30, is_deleted: true}
+      - input: ref('order_status_map')
+        rows:
+          - {source_system: shopfront, vendor_status: shipped, status: shipped}
+          - {source_system: cartwheel, vendor_status: IN_TRANSIT, status: shipped}
+          - {source_system: cartwheel, vendor_status: VOIDED, status: cancelled}
+    expect:
+      rows:
+        - {source_system: shopfront, tenant: globex, order_native_id: ord_1, order_key: 548e94e0158b244a24e1001ea1f438cd, customer_key: 449b366f676ea22f57e98568b4e698a9, status: shipped, currency: USD}
+        - {source_system: cartwheel, tenant: umbrella, order_native_id: "9", order_key: 4bdb22c269e26ade14475524bd27643e, customer_key: 38aa17e6f9d0f74ca2798d1d7ff4f702, status: shipped, currency: GBP}
+
+  - name: commerce_customers_map_country_names_to_codes
+    model: dim_commerce_customers
+    config: {tags: [vendors]}
+    given:
+      - input: ref('stg_shopfront__customers')
+        rows:
+          - {customer_native_id: cus_1, country_code: GB, country_name: null, is_deleted: false}
+      - input: ref('stg_cartwheel__customers')
+        rows:
+          - {customer_native_id: "5", country_code: null, country_name: Germany, is_deleted: false}
+          - {customer_native_id: "6", country_code: null, country_name: null, is_deleted: true}
+      - input: ref('country_codes')
+        rows:
+          - {country_name: Germany, country_code: DE}
+    expect:
+      rows:
+        - {source_system: shopfront, customer_native_id: cus_1, customer_key: 449b366f676ea22f57e98568b4e698a9, country_code: GB, is_deleted: false}
+        - {source_system: cartwheel, customer_native_id: "5", customer_key: 38aa17e6f9d0f74ca2798d1d7ff4f702, country_code: DE, is_deleted: false}
+        - {source_system: cartwheel, customer_native_id: "6", country_code: null, is_deleted: true}

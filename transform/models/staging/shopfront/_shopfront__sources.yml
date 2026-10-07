@@ -1,0 +1,12 @@
+version: 2
+
+sources:
+  - name: shopfront
+    description: Raw Shopfront (commerce) extracts for tenant globex. Line items arrive nested in each order.
+    schema: "{{ var('vendors')['shopfront']['schema'] }}"
+    loaded_at_field: _loaded_at
+    freshness:
+      warn_after: {count: 36, period: hour}
+    tables:
+      - name: customers
+      - name: orders
